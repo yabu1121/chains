@@ -1,0 +1,128 @@
+"use client";
+
+import useSWR, { mutate } from "swr";
+import { apiFetch } from "./api";
+import type {
+  FriendSummary,
+  NetworkGraph,
+  PublicProfile,
+  RequestSummary,
+  SocialProfile,
+  UserSummary,
+} from "./types";
+
+// SWR keys are the API paths, so mutations can target them precisely.
+const KEYS = {
+  friends: "/api/friends",
+  incoming: "/api/friends/requests/incoming",
+  outgoing: "/api/friends/requests/outgoing",
+  incomingCount: "/api/friends/requests/incoming/count",
+  blocked: "/api/blocks",
+  network: "/api/network",
+};
+
+const fetcher = <T>(path: string) => apiFetch<T>(path);
+
+export function useFriends() {
+  const { data, error, isLoading } = useSWR<{ friends: FriendSummary[] }>(
+    KEYS.friends,
+    fetcher,
+  );
+  return { friends: data?.friends ?? [], error, isLoading };
+}
+
+export function useIncomingRequests() {
+  const { data, error, isLoading } = useSWR<{ requests: RequestSummary[] }>(
+    KEYS.incoming,
+    fetcher,
+  );
+  return { requests: data?.requests ?? [], error, isLoading };
+}
+
+export function useOutgoingRequests() {
+  const { data, error, isLoading } = useSWR<{ requests: RequestSummary[] }>(
+    KEYS.outgoing,
+    fetcher,
+  );
+  return { requests: data?.requests ?? [], error, isLoading };
+}
+
+export function useIncomingCount() {
+  const { data } = useSWR<{ count: number }>(KEYS.incomingCount, fetcher, {
+    refreshInterval: 30_000,
+  });
+  return data?.count ?? 0;
+}
+
+export function useNetwork() {
+  const { data, error, isLoading } = useSWR<NetworkGraph>(
+    KEYS.network,
+    fetcher,
+    { refreshInterval: 30_000 },
+  );
+  return { graph: data, error, isLoading };
+}
+
+/** Revalidates everything affected by a relationship change. */
+async function revalidateAll() {
+  await Promise.all(Object.values(KEYS).map((k) => mutate(k)));
+}
+
+export async function searchUsers(query: string): Promise<UserSummary[]> {
+  const data = await apiFetch<{ results: UserSummary[] }>(
+    `/api/users/search?q=${encodeURIComponent(query)}`,
+  );
+  return data.results;
+}
+
+export async function sendRequest(addresseeId: string): Promise<void> {
+  await apiFetch("/api/friends/requests", {
+    method: "POST",
+    body: { addressee_id: addresseeId },
+  });
+  await revalidateAll();
+}
+
+export async function acceptRequest(requestId: string): Promise<void> {
+  await apiFetch(`/api/friends/requests/${requestId}/accept`, {
+    method: "POST",
+  });
+  await revalidateAll();
+}
+
+export async function rejectRequest(requestId: string): Promise<void> {
+  await apiFetch(`/api/friends/requests/${requestId}`, { method: "DELETE" });
+  await revalidateAll();
+}
+
+export async function removeFriend(userId: string): Promise<void> {
+  await apiFetch(`/api/friends/${userId}`, { method: "DELETE" });
+  await revalidateAll();
+}
+
+export async function blockUser(userId: string): Promise<void> {
+  await apiFetch("/api/blocks", { method: "POST", body: { user_id: userId } });
+  await revalidateAll();
+}
+
+/** Fetches a user's public profile (used when tapping a graph node). */
+export function getProfile(userId: string): Promise<PublicProfile> {
+  return apiFetch<PublicProfile>(`/api/users/${userId}`);
+}
+
+export interface ProfileInput extends SocialProfile {
+  display_name: string;
+  languages: string[];
+}
+
+/** Updates the caller's own profile and refreshes the graph cache. */
+export async function updateProfile(
+  input: ProfileInput,
+): Promise<PublicProfile> {
+  const p = await apiFetch<PublicProfile>("/api/me/profile", {
+    method: "PUT",
+    body: input,
+  });
+  await mutate(KEYS.network);
+  return p;
+}

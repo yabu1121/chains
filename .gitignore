@@ -1,0 +1,20 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Go
+/backend/bin/
+/backend/api
+/backend/devserver
+*.test
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.log
+.DS_Store
