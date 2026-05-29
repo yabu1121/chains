@@ -1,21 +1,37 @@
 "use client";
 
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import useSWR from "swr";
 import { useAuth } from "@/lib/auth";
-import { ApiError } from "@/lib/api";
+import { ApiError, deleteAvatar, uploadAvatar } from "@/lib/api";
 import { getProfile, updateProfile, type ProfileInput } from "@/lib/hooks";
+import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
+import { useReveal } from "@/lib/anim";
 import type { PublicProfile } from "@/lib/types";
+import { Avatar } from "./Avatar";
+import { Select } from "./Select";
+
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 
 const EMPTY: ProfileInput = {
   display_name: "",
-  bio: "",
+  job_title: "",
+  status_message: "",
   x_handle: "",
   github_handle: "",
   zenn_handle: "",
   linkedin_url: "",
   portfolio_url: "",
   languages: [],
+  birth_date: "",
+  show_age: true,
+  show_birth_date: false,
 };
 
 export function ProfileEditor() {
@@ -26,22 +42,69 @@ export function ProfileEditor() {
   );
 
   const [form, setForm] = useState<ProfileInput>(EMPTY);
-  const [newLang, setNewLang] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useReveal<HTMLFormElement>();
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
+
+  async function onPickAvatar(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    setAvatarError(null);
+    if (file.size > MAX_AVATAR_BYTES) {
+      setAvatarError("画像は2MBまでにしてください");
+      return;
+    }
+    setAvatarBusy(true);
+    try {
+      await uploadAvatar(file);
+      await mutate();
+      await refreshUser();
+    } catch (err) {
+      setAvatarError(
+        err instanceof ApiError ? err.message : "アップロードに失敗しました",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+
+  async function onRemoveAvatar() {
+    setAvatarError(null);
+    setAvatarBusy(true);
+    try {
+      await deleteAvatar();
+      await mutate();
+      await refreshUser();
+    } catch (err) {
+      setAvatarError(
+        err instanceof ApiError ? err.message : "削除に失敗しました",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
 
   // Prefill from the loaded profile (includes languages).
   useEffect(() => {
     if (!profile) return;
     setForm({
       display_name: profile.display_name,
-      bio: profile.bio,
+      job_title: profile.job_title,
+      status_message: profile.status_message,
       x_handle: profile.x_handle,
       github_handle: profile.github_handle,
       zenn_handle: profile.zenn_handle,
       linkedin_url: profile.linkedin_url,
       portfolio_url: profile.portfolio_url,
       languages: profile.languages,
+      birth_date: profile.birth_date ?? "",
+      show_age: profile.show_age ?? true,
+      show_birth_date: profile.show_birth_date ?? false,
     });
   }, [profile]);
 
@@ -50,20 +113,13 @@ export function ProfileEditor() {
     setStatus("idle");
   }
 
-  function addLanguage() {
-    const lang = newLang.trim();
+  function addLanguage(lang: string) {
     if (!lang) return;
-    const exists = form.languages.some((l) => l.toLowerCase() === lang.toLowerCase());
+    const exists = form.languages.some(
+      (l) => l.toLowerCase() === lang.toLowerCase(),
+    );
     if (!exists && form.languages.length < 30) {
       set("languages", [...form.languages, lang]);
-    }
-    setNewLang("");
-  }
-
-  function onLangKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addLanguage();
     }
   }
 
@@ -90,8 +146,50 @@ export function ProfileEditor() {
   }
 
   return (
-    <form className="card" onSubmit={onSubmit}>
+    <form className="card" onSubmit={onSubmit} ref={formRef}>
       <h2 className="section-title">Your profile</h2>
+
+      <label>Photo</label>
+      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        {user ? (
+          <Avatar
+            user={{
+              id: user.id,
+              display_name: form.display_name || user.display_name,
+              avatar_updated_at:
+                profile?.avatar_updated_at ?? user.avatar_updated_at,
+            }}
+            size={64}
+          />
+        ) : null}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={avatarBusy}
+          >
+            {avatarBusy ? "Uploading…" : "Change photo"}
+          </button>
+          {profile?.avatar_updated_at ? (
+            <button
+              type="button"
+              className="danger"
+              onClick={onRemoveAvatar}
+              disabled={avatarBusy}
+            >
+              Remove
+            </button>
+          ) : null}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={onPickAvatar}
+          style={{ display: "none" }}
+        />
+      </div>
+      {avatarError ? <p className="error">{avatarError}</p> : null}
 
       <label htmlFor="dn">Display name</label>
       <input
@@ -102,37 +200,81 @@ export function ProfileEditor() {
         maxLength={50}
       />
 
-      <label htmlFor="bio">Bio ({form.bio.length}/160)</label>
-      <textarea
-        id="bio"
-        value={form.bio}
-        onChange={(e) => set("bio", e.target.value.slice(0, 160))}
-        rows={3}
-        style={{
-          width: "100%",
-          padding: "10px 12px",
-          background: "var(--panel-2)",
-          border: "1px solid var(--border)",
-          borderRadius: 8,
-          color: "var(--text)",
-          font: "inherit",
-          resize: "vertical",
-        }}
+      <label htmlFor="jt">Job title</label>
+      <input
+        id="jt"
+        value={form.job_title}
+        onChange={(e) => set("job_title", e.target.value)}
+        maxLength={60}
+        placeholder="Software Engineer"
       />
 
-      <label>Languages (programming languages you've worked with)</label>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          value={newLang}
-          onChange={(e) => setNewLang(e.target.value)}
-          onKeyDown={onLangKeyDown}
-          placeholder="e.g. Go, then press Enter"
-          maxLength={40}
-        />
-        <button type="button" onClick={addLanguage}>
-          Add
-        </button>
+      <label htmlFor="sm">Status message ({form.status_message.length}/100)</label>
+      <input
+        id="sm"
+        value={form.status_message}
+        onChange={(e) => set("status_message", e.target.value.slice(0, 100))}
+        placeholder="What are you up to?"
+      />
+
+      <label htmlFor="bd">Birth date</label>
+      <input
+        id="bd"
+        type="date"
+        value={form.birth_date}
+        max={new Date().toISOString().slice(0, 10)}
+        onChange={(e) => set("birth_date", e.target.value)}
+      />
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 16,
+          marginTop: 8,
+          fontSize: 14,
+        }}
+      >
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}
+        >
+          <input
+            type="checkbox"
+            checked={form.show_age}
+            onChange={(e) => set("show_age", e.target.checked)}
+            style={{ width: "auto" }}
+          />
+          Show my age
+        </label>
+        <label
+          style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}
+        >
+          <input
+            type="checkbox"
+            checked={form.show_birth_date}
+            onChange={(e) => set("show_birth_date", e.target.checked)}
+            style={{ width: "auto" }}
+          />
+          Show my birth date
+        </label>
       </div>
+
+      <label>Languages (programming languages you've worked with)</label>
+      <Select
+        fullWidth
+        // Always shows the placeholder: picking a language adds it and resets.
+        value=""
+        onChange={addLanguage}
+        disabled={form.languages.length >= 30}
+        placeholder={
+          form.languages.length >= 30
+            ? "Maximum 30 languages"
+            : "Add a language…"
+        }
+        ariaLabel="Add a programming language"
+        options={PROGRAMMING_LANGUAGES.filter(
+          (lang) => !form.languages.includes(lang),
+        ).map((lang) => ({ value: lang, label: lang }))}
+      />
       {form.languages.length > 0 ? (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
           {form.languages.map((lang) => (

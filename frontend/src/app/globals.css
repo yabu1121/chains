@@ -12,10 +12,72 @@
   --radius: 10px;
   --sidebar-w: 240px;
   --bottombar-h: 60px;
+
+  --bluesky: #4cb5f5;
+  --granite: #b7b8b6;
+  --pine: #34675c;
+  --fields: #b3c100;
+
+  /* Brand fill for brand text, primary buttons, active nav, avatars and badges.
+     Solid pine — the former 4-colour gradient was dropped. */
+  --grad: var(--pine);
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Smooth, modern easing reused across entrance animations. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Ambient chain background + stacking ───────────────────────────── */
+
+.chain-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.16;
+}
+
+.app-root {
+  position: relative;
+  z-index: 1;
 }
 
 html,
@@ -23,12 +85,33 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
-  background: var(--bg);
   color: var(--text);
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.5;
+}
+
+/* Soft, fixed gradient wash over the light base — keeps surfaces readable. */
+body {
+  background:
+    radial-gradient(
+      1100px 620px at 100% -8%,
+      rgba(76, 181, 245, 0.13),
+      transparent 60%
+    ),
+    radial-gradient(
+      900px 680px at -8% 108%,
+      rgba(179, 193, 0, 0.1),
+      transparent 55%
+    ),
+    radial-gradient(
+      760px 520px at 50% 120%,
+      rgba(52, 103, 92, 0.07),
+      transparent 60%
+    ),
+    var(--bg);
+  background-attachment: fixed;
 }
 
 a {
@@ -106,6 +189,21 @@ a {
   flex-direction: column;
 }
 
+/* The animated tab wrapper must also stretch so the graph can fill it. */
+.tab-panel--full {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Let touch swipes pan/zoom the graph instead of scrolling the page. */
+.graph-canvas,
+.graph-canvas canvas {
+  touch-action: none;
+  overscroll-behavior: none;
+}
+
 .bottombar {
   display: none;
 }
@@ -132,13 +230,25 @@ a {
   background: var(--panel-2);
 }
 
+/* Active fill is the sliding .nav-pill (framer-motion layoutId) sitting behind
+   the label — so the button itself stays transparent. */
 .navbtn.active {
-  background: var(--accent);
   color: #fff;
 }
 
-.navbtn.active:hover {
-  background: var(--accent-press);
+.nav-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 8px;
+  background: var(--grad);
+  box-shadow: 0 4px 14px rgba(52, 103, 92, 0.25);
+}
+
+.navbtn .nav-label,
+.navbtn .badge {
+  position: relative;
+  z-index: 1;
 }
 
 .topbar {
@@ -154,6 +264,7 @@ a {
   font-weight: 700;
   font-size: 18px;
   letter-spacing: 0.5px;
+  color: var(--grad);
 }
 
 .card {
@@ -163,6 +274,16 @@ a {
   padding: 20px;
   margin-bottom: 16px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition:
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+  /* `backwards` (not `forwards`) so the held transform doesn't fight :hover. */
+  animation: fade-in-up 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.card:hover {
+  box-shadow: 0 6px 24px rgba(16, 24, 40, 0.08);
+  transform: translateY(-2px);
 }
 
 .section-title {
@@ -190,12 +311,12 @@ a {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--panel-2);
+  background: var(--grad);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  color: var(--accent);
+  color: #fff;
   margin-right: 10px;
 }
 
@@ -203,6 +324,16 @@ a {
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.person.clickable {
+  cursor: pointer;
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.person.clickable:hover .name {
+  color: var(--accent);
 }
 
 .person .name {
@@ -220,7 +351,8 @@ a {
   flex-shrink: 0;
 }
 
-input {
+input,
+select {
   width: 100%;
   padding: 10px 12px;
   background: var(--panel-2);
@@ -228,11 +360,189 @@ input {
   border-radius: 8px;
   color: var(--text);
   font-size: 15px;
+  font-family: inherit;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+}
+
+/* Custom dropdown: drop the native arrow, add our own chevron + interactions. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687083' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+select:hover {
+  border-color: var(--pine);
+  background-color: #e7ebf1;
+}
+
+/* Swap the chevron to the brand blue on focus. */
+select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234cb5f5' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* The native popup ignores most styling, but a left accent bar on the
+   highlighted option reads as intentional where browsers honour it. */
+select option:checked {
+  box-shadow: inset 3px 0 0 var(--bluesky);
+}
+
+/* ── Custom animated select (see components/Select.tsx) ─────────────── */
+
+.select {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.select.full {
+  display: block;
+  width: 100%;
+}
+
+.select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: auto;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.select.full .select-trigger {
+  width: 100%;
+}
+
+.select-trigger:hover:not(:disabled) {
+  border-color: var(--pine);
+  background-color: #e7ebf1;
+}
+
+.select-trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+}
+
+.select-trigger.open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+}
+
+.select-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-value.placeholder {
+  color: var(--muted);
+}
+
+.select-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.select-trigger.open .select-chevron {
+  color: var(--accent);
+}
+
+.select-panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: max-content;
+  max-height: 280px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 14px 36px rgba(16, 24, 40, 0.16);
+}
+
+.select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.select-option.active {
+  background: var(--panel-2);
+}
+
+.select-option.selected {
+  color: var(--pine);
+  font-weight: 600;
+}
+
+.select-option.disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.select-check {
+  flex-shrink: 0;
+  color: var(--pine);
 }
 
 label {
@@ -250,11 +560,18 @@ button {
   padding: 8px 14px;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 button:hover {
   background: #e4e8ee;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 button:disabled {
@@ -263,16 +580,20 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--grad);
+  border: none;
   color: #fff;
   width: 100%;
   padding: 11px;
   font-weight: 600;
+  box-shadow: 0 4px 16px rgba(52, 103, 92, 0.22);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.2s ease;
 }
 
 button.primary:hover {
-  background: var(--accent-press);
+  box-shadow: 0 6px 22px rgba(52, 103, 92, 0.3);
 }
 
 button.danger {
@@ -291,12 +612,50 @@ button.ghost:hover {
 }
 
 .badge {
-  background: var(--accent);
+  background: var(--grad);
+  background-size: 160% 160%;
   color: #fff;
   border-radius: 999px;
   font-size: 12px;
   padding: 1px 8px;
   margin-left: 6px;
+  animation: badge-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(47, 107, 255, 0.45);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 5px rgba(47, 107, 255, 0);
+  }
+}
+
+.person .name {
+  transition: color 0.18s ease;
+}
+
+.navbtn:active {
+  transform: scale(0.97);
+}
+
+/* Honour users who ask for less motion: drop the ambient layer and any
+   CSS transitions/animations. JS animations are skipped separately. */
+@media (prefers-reduced-motion: reduce) {
+  .chain-bg {
+    display: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 .error {
@@ -324,11 +683,13 @@ button.ghost:hover {
   position: fixed;
   inset: 0;
   background: rgba(16, 24, 40, 0.45);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
   z-index: 50;
+  animation: overlay-in 0.18s ease both;
 }
 
 .modal-card {
@@ -339,7 +700,8 @@ button.ghost:hover {
   width: 100%;
   max-width: 420px;
   position: relative;
-  box-shadow: 0 12px 40px rgba(16, 24, 40, 0.18);
+  box-shadow: 0 18px 50px rgba(16, 24, 40, 0.22);
+  animation: modal-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .modal-close {
