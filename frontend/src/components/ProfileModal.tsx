@@ -6,6 +6,7 @@ import { ProfileView } from "./ProfileView";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getProfile, sendRequest, useFriends } from "@/lib/hooks";
+import { useReveal } from "@/lib/anim";
 import type { PublicProfile } from "@/lib/types";
 
 export function ProfileModal({
@@ -25,6 +26,9 @@ export function ProfileModal({
   const [requested, setRequested] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const overlayRef = useReveal<HTMLDivElement>({ y: 0, duration: 250 });
+  const cardRef = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 360 });
+
   const isSelf = user?.id === userId;
   const isFriend = friends.some((f) => f.user.id === userId);
 
@@ -39,8 +43,12 @@ export function ProfileModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} ref={overlayRef}>
+      <div
+        className="modal-card"
+        onClick={(e) => e.stopPropagation()}
+        ref={cardRef}
+      >
         <button className="modal-close" onClick={onClose} aria-label="Close">
           ×
         </button>

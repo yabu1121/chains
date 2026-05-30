@@ -103,6 +103,10 @@ func (f *fakeStore) ListAcceptedFriendships(_ context.Context, userID uuid.UUID)
 	return out, nil
 }
 
+func (f *fakeStore) LanguagesByUsers(_ context.Context, _ []uuid.UUID) (map[uuid.UUID][]string, error) {
+	return map[uuid.UUID][]string{}, nil
+}
+
 func (f *fakeStore) ListPendingIncoming(_ context.Context, userID uuid.UUID) ([]models.Friendship, error) {
 	var out []models.Friendship
 	for _, fr := range f.friendships {

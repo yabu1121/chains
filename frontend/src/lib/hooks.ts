@@ -68,9 +68,15 @@ async function revalidateAll() {
   await Promise.all(Object.values(KEYS).map((k) => mutate(k)));
 }
 
-export async function searchUsers(query: string): Promise<UserSummary[]> {
+export async function searchUsers(
+  query: string,
+  language?: string,
+): Promise<UserSummary[]> {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (language) params.set("lang", language);
   const data = await apiFetch<{ results: UserSummary[] }>(
-    `/api/users/search?q=${encodeURIComponent(query)}`,
+    `/api/users/search?${params.toString()}`,
   );
   return data.results;
 }
@@ -110,9 +116,19 @@ export function getProfile(userId: string): Promise<PublicProfile> {
   return apiFetch<PublicProfile>(`/api/users/${userId}`);
 }
 
+/** Resolves a public profile by username (used by the QR / add-by-link flow). */
+export function getProfileByUsername(username: string): Promise<PublicProfile> {
+  return apiFetch<PublicProfile>(
+    `/api/users/by-username/${encodeURIComponent(username)}`,
+  );
+}
+
 export interface ProfileInput extends SocialProfile {
   display_name: string;
   languages: string[];
+  birth_date: string; // "YYYY-MM-DD" or "" to clear
+  show_age: boolean;
+  show_birth_date: boolean;
 }
 
 /** Updates the caller's own profile and refreshes the graph cache. */

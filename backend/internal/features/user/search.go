@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -25,9 +26,10 @@ const (
 
 // Result is one public search hit (handle and display name, never email).
 type Result struct {
-	ID          uuid.UUID `json:"id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
+	ID              uuid.UUID  `json:"id"`
+	Username        string     `json:"username"`
+	DisplayName     string     `json:"display_name"`
+	AvatarUpdatedAt *time.Time `json:"avatar_updated_at"`
 }
 
 // Repository searches the users table.
@@ -40,17 +42,26 @@ func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{db: db}
 }
 
-// Search returns users whose username or display name matches the query,
-// excluding the caller. The query is escaped for safe LIKE matching.
-func (r *Repository) Search(ctx context.Context, q string, exclude uuid.UUID, limit int) ([]models.User, error) {
-	pattern := "%" + escapeLike(q) + "%"
+// Search returns users matching the given filters, excluding the caller. A
+// non-empty q matches username or display name (escaped for safe LIKE); a
+// non-empty lang restricts to users who list that programming language. At
+// least one filter is expected; both may be combined.
+func (r *Repository) Search(ctx context.Context, q, lang string, exclude uuid.UUID, limit int) ([]models.User, error) {
+	tx := r.db.WithContext(ctx).
+		Model(&models.User{}).
+		Where("id <> ?", exclude)
+	if q != "" {
+		pattern := "%" + escapeLike(q) + "%"
+		tx = tx.Where("username ILIKE ? ESCAPE '\\' OR display_name ILIKE ? ESCAPE '\\'", pattern, pattern)
+	}
+	if lang != "" {
+		tx = tx.Where(
+			"id IN (SELECT user_id FROM user_languages WHERE lower(language) = lower(?))",
+			lang,
+		)
+	}
 	var users []models.User
-	err := r.db.WithContext(ctx).
-		Where("id <> ?", exclude).
-		Where("username ILIKE ? ESCAPE '\\' OR display_name ILIKE ? ESCAPE '\\'", pattern, pattern).
-		Order("username ASC").
-		Limit(limit).
-		Find(&users).Error
+	err := tx.Order("username ASC").Limit(limit).Find(&users).Error
 	return users, err
 }
 
@@ -77,8 +88,15 @@ func (h *Handler) Search(c echo.Context) error {
 	}
 
 	q := strings.TrimSpace(c.QueryParam("q"))
-	if len([]rune(q)) < minQueryLen {
+	lang := strings.TrimSpace(c.QueryParam("lang"))
+
+	// A text query, when given, must be at least minQueryLen. Searching by
+	// language alone is allowed, but at least one filter is required.
+	if q != "" && len([]rune(q)) < minQueryLen {
 		return httperr.BadRequest("query_too_short", "search query must be at least 2 characters")
+	}
+	if q == "" && lang == "" {
+		return httperr.BadRequest("query_required", "provide a search query or a language filter")
 	}
 
 	limit := defaultLimit
@@ -91,7 +109,7 @@ func (h *Handler) Search(c echo.Context) error {
 		limit = maxLimit
 	}
 
-	users, err := h.repo.Search(c.Request().Context(), q, userID, limit)
+	users, err := h.repo.Search(c.Request().Context(), q, lang, userID, limit)
 	if err != nil {
 		return httperr.Internal("could not search users").Wrap(err)
 	}
@@ -99,9 +117,10 @@ func (h *Handler) Search(c echo.Context) error {
 	results := make([]Result, 0, len(users))
 	for i := range users {
 		results = append(results, Result{
-			ID:          users[i].ID,
-			Username:    users[i].Username,
-			DisplayName: users[i].DisplayName,
+			ID:              users[i].ID,
+			Username:        users[i].Username,
+			DisplayName:     users[i].DisplayName,
+			AvatarUpdatedAt: users[i].AvatarUpdatedAt,
 		})
 	}
 	return c.JSON(http.StatusOK, echo.Map{"results": results})

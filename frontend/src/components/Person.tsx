@@ -1,26 +1,37 @@
 import type { ReactNode } from "react";
 import type { UserSummary } from "@/lib/types";
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  const first = parts[0]?.[0] ?? "?";
-  const second = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (first + second).toUpperCase();
-}
+import { Avatar } from "./Avatar";
 
 export function Person({
   user,
   subtitle,
   actions,
+  onSelect,
 }: {
   user: UserSummary;
   subtitle?: string;
   actions?: ReactNode;
+  onSelect?: () => void;
 }) {
   return (
     <div className="row">
-      <div className="person">
-        <span className="avatar">{initials(user.display_name)}</span>
+      <div
+        className={`person${onSelect ? " clickable" : ""}`}
+        onClick={onSelect}
+        role={onSelect ? "button" : undefined}
+        tabIndex={onSelect ? 0 : undefined}
+        onKeyDown={
+          onSelect
+            ? (e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect();
+                }
+              }
+            : undefined
+        }
+      >
+        <Avatar user={user} />
         <span style={{ minWidth: 0 }}>
           <div className="name">{user.display_name}</div>
           <div className="email">{subtitle ?? `@${user.username}`}</div>

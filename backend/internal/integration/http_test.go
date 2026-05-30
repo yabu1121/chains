@@ -140,45 +140,83 @@ func TestHTTP_ProfileUpdateAndPublicView(t *testing.T) {
 	})).User.ID
 
 	type profileResp struct {
-		ID           string   `json:"id"`
-		Username     string   `json:"username"`
-		DisplayName  string   `json:"display_name"`
-		Bio          string   `json:"bio"`
-		XHandle      string   `json:"x_handle"`
-		GithubHandle string   `json:"github_handle"`
-		ZennHandle   string   `json:"zenn_handle"`
-		LinkedinURL  string   `json:"linkedin_url"`
-		PortfolioURL string   `json:"portfolio_url"`
-		Languages    []string `json:"languages"`
+		ID            string   `json:"id"`
+		Username      string   `json:"username"`
+		DisplayName   string   `json:"display_name"`
+		JobTitle      string   `json:"job_title"`
+		StatusMessage string   `json:"status_message"`
+		XHandle       string   `json:"x_handle"`
+		GithubHandle  string   `json:"github_handle"`
+		ZennHandle    string   `json:"zenn_handle"`
+		LinkedinURL   string   `json:"linkedin_url"`
+		PortfolioURL  string   `json:"portfolio_url"`
+		Languages     []string `json:"languages"`
+		LinksVisible  bool     `json:"links_visible"`
+		Age           *int     `json:"age"`
+		BirthDate     *string  `json:"birth_date"`
 	}
 
 	// Alice edits her profile; a leading @ on handles is stripped, and a
 	// duplicate language (case-insensitive) is collapsed while order is kept.
+	// Her birth date is set but the date itself stays private (show_age only).
 	rec := alice.do(http.MethodPut, "/api/me/profile", echo.Map{
-		"display_name":  "Alice A.",
-		"bio":           "hello world",
-		"x_handle":      "@alice_x",
-		"github_handle": "alicehub",
-		"zenn_handle":   "alice_z",
-		"linkedin_url":  "https://linkedin.com/in/alice",
-		"portfolio_url": "https://alice.dev",
-		"languages":     []string{"Go", "TypeScript", "go", "C++"},
+		"display_name":    "Alice A.",
+		"job_title":       "Staff Engineer",
+		"status_message":  "shipping things",
+		"x_handle":        "@alice_x",
+		"github_handle":   "alicehub",
+		"zenn_handle":     "alice_z",
+		"linkedin_url":    "https://linkedin.com/in/alice",
+		"portfolio_url":   "https://alice.dev",
+		"languages":       []string{"Go", "TypeScript", "go", "C++"},
+		"birth_date":      "1990-01-01",
+		"show_age":        true,
+		"show_birth_date": false,
 	})
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	updated := decode[profileResp](t, rec)
 	require.Equal(t, "alice_x", updated.XHandle, "leading @ stripped")
 	require.Equal(t, "Alice A.", updated.DisplayName)
 	require.Equal(t, []string{"Go", "TypeScript", "C++"}, updated.Languages, "dedup case-insensitively, order kept")
+	require.NotNil(t, updated.BirthDate, "owner sees their own birth date")
+	require.True(t, updated.LinksVisible, "owner sees their own links")
 
-	// Bob views Alice's public profile by id (no email field present).
+	// Bob views Alice's public profile by id (no email field present). Bob is
+	// not Alice's friend, so account links are hidden, but general profile
+	// fields (job, status, languages, age) remain visible.
 	rec = bob.do(http.MethodGet, "/api/users/"+aliceID.String(), nil)
 	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 	require.NotContains(t, rec.Body.String(), "\"email\"", "public profile must not leak email")
 	pub := decode[profileResp](t, rec)
-	require.Equal(t, "hello world", pub.Bio)
-	require.Equal(t, "https://alice.dev", pub.PortfolioURL)
-	require.Equal(t, "alicehub", pub.GithubHandle)
+	require.Equal(t, "Staff Engineer", pub.JobTitle)
+	require.Equal(t, "shipping things", pub.StatusMessage)
+	require.False(t, pub.LinksVisible, "non-friends cannot see links")
+	require.Empty(t, pub.PortfolioURL, "links hidden from non-friends")
+	require.Empty(t, pub.GithubHandle, "links hidden from non-friends")
 	require.Equal(t, []string{"Go", "TypeScript", "C++"}, pub.Languages)
+	require.NotNil(t, pub.Age, "age is visible (show_age)")
+	require.Nil(t, pub.BirthDate, "exact birth date stays private to others")
+
+	// Once Alice and Bob are friends, Bob can see Alice's links.
+	bobID := decode[auth.AuthResponse](t, bob.do(http.MethodPost, "/api/auth/login", echo.Map{
+		"email": "bob@example.com", "password": "supersecret",
+	})).User.ID
+	rec = alice.do(http.MethodPost, "/api/friends/requests", echo.Map{"addressee_id": bobID})
+	require.Equal(t, http.StatusCreated, rec.Code, rec.Body.String())
+	inc := decode[requestsResp](t, bob.do(http.MethodGet, "/api/friends/requests/incoming", nil))
+	require.Len(t, inc.Requests, 1)
+	rec = bob.do(http.MethodPost, "/api/friends/requests/"+inc.Requests[0].RequestID.String()+"/accept", nil)
+	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+
+	friendView := decode[profileResp](t, bob.do(http.MethodGet, "/api/users/"+aliceID.String(), nil))
+	require.True(t, friendView.LinksVisible, "friends can see links")
+	require.Equal(t, "https://alice.dev", friendView.PortfolioURL)
+	require.Equal(t, "alicehub", friendView.GithubHandle)
+
+	// The QR/add-by-username lookup resolves the same profile.
+	byName := decode[profileResp](t, bob.do(http.MethodGet, "/api/users/by-username/"+pub.Username, nil))
+	require.Equal(t, aliceID.String(), byName.ID)
+	require.True(t, byName.LinksVisible, "friend sees links via username lookup too")
 
 	// Invalid handle is rejected.
 	rec = alice.do(http.MethodPut, "/api/me/profile", echo.Map{

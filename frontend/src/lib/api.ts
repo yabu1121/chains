@@ -76,3 +76,50 @@ export async function apiFetch<T>(
 
   return data as T;
 }
+
+/** Public URL for a user's avatar image. `version` (avatar_updated_at) busts the cache. */
+export function avatarUrl(userId: string, version: string | null): string {
+  const v = version ? `?v=${encodeURIComponent(version)}` : "";
+  return `${BASE_URL}/api/users/${userId}/avatar${v}`;
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/** Uploads the caller's avatar (raw image body) and returns the new version. */
+export async function uploadAvatar(
+  file: File,
+): Promise<{ avatar_updated_at: string; content_type: string }> {
+  const res = await fetch(`${BASE_URL}/api/me/avatar`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": file.type || "application/octet-stream",
+      ...authHeaders(),
+    },
+    body: file,
+  });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : undefined;
+  if (!res.ok) {
+    const err = (data as ApiErrorBody | undefined)?.error;
+    throw new ApiError(
+      res.status,
+      err?.code ?? "unknown",
+      err?.message ?? `upload failed with status ${res.status}`,
+    );
+  }
+  return data;
+}
+
+/** Removes the caller's avatar. */
+export async function deleteAvatar(): Promise<void> {
+  const res = await fetch(`${BASE_URL}/api/me/avatar`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new ApiError(res.status, "unknown", `delete failed with status ${res.status}`);
+  }
+}

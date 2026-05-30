@@ -10,12 +10,14 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 
 	"github.com/cymed/chains/backend/internal/features/network"
+	"github.com/cymed/chains/backend/internal/langs"
 	"github.com/cymed/chains/backend/internal/models"
 	"github.com/cymed/chains/backend/internal/platform/cache"
 	"github.com/cymed/chains/backend/internal/platform/httperr"
@@ -26,53 +28,109 @@ var (
 	xHandlePattern      = regexp.MustCompile(`^[A-Za-z0-9_]{1,15}$`)
 	githubHandlePattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
 	zennHandlePattern   = regexp.MustCompile(`^[A-Za-z0-9_]{1,30}$`)
-	languagePattern     = regexp.MustCompile(`^[A-Za-z0-9+#. -]{1,40}$`)
 )
 
 const maxLanguages = 30
 
-// PublicProfile is the publicly visible profile (no email).
+// PublicProfile is the publicly visible profile (no email). Age and BirthDate
+// are gated by the owner's visibility toggles (and always shown to the owner so
+// the editor can prefill). ShowAge/ShowBirthDate are only populated for the
+// owner.
 type PublicProfile struct {
-	ID           uuid.UUID `json:"id"`
-	Username     string    `json:"username"`
-	DisplayName  string    `json:"display_name"`
-	Bio          string    `json:"bio"`
-	XHandle      string    `json:"x_handle"`
-	GithubHandle string    `json:"github_handle"`
-	ZennHandle   string    `json:"zenn_handle"`
-	LinkedinURL  string    `json:"linkedin_url"`
-	PortfolioURL string    `json:"portfolio_url"`
-	Languages    []string  `json:"languages"`
+	ID            uuid.UUID `json:"id"`
+	Username      string    `json:"username"`
+	DisplayName   string    `json:"display_name"`
+	JobTitle      string    `json:"job_title"`
+	StatusMessage string    `json:"status_message"`
+	XHandle       string    `json:"x_handle"`
+	GithubHandle  string    `json:"github_handle"`
+	ZennHandle    string    `json:"zenn_handle"`
+	LinkedinURL   string    `json:"linkedin_url"`
+	PortfolioURL  string    `json:"portfolio_url"`
+	Languages     []string  `json:"languages"`
+
+	// LinksVisible is true when the viewer may see the account links above
+	// (self or an accepted friend). When false, those fields are blanked.
+	LinksVisible bool `json:"links_visible"`
+
+	Age           *int    `json:"age"`
+	BirthDate     *string `json:"birth_date"`
+	ShowAge       *bool   `json:"show_age"`
+	ShowBirthDate *bool   `json:"show_birth_date"`
+
+	AvatarUpdatedAt *time.Time `json:"avatar_updated_at"`
+	CreatedAt       time.Time  `json:"created_at"`
 }
 
-// UpdateRequest is the body for editing one's own profile.
+// UpdateRequest is the body for editing one's own profile. BirthDate is
+// "YYYY-MM-DD" or empty to clear.
 type UpdateRequest struct {
-	DisplayName  string   `json:"display_name"`
-	Bio          string   `json:"bio"`
-	XHandle      string   `json:"x_handle"`
-	GithubHandle string   `json:"github_handle"`
-	ZennHandle   string   `json:"zenn_handle"`
-	LinkedinURL  string   `json:"linkedin_url"`
-	PortfolioURL string   `json:"portfolio_url"`
-	Languages    []string `json:"languages"`
+	DisplayName   string   `json:"display_name"`
+	JobTitle      string   `json:"job_title"`
+	StatusMessage string   `json:"status_message"`
+	XHandle       string   `json:"x_handle"`
+	GithubHandle  string   `json:"github_handle"`
+	ZennHandle    string   `json:"zenn_handle"`
+	LinkedinURL   string   `json:"linkedin_url"`
+	PortfolioURL  string   `json:"portfolio_url"`
+	Languages     []string `json:"languages"`
+	BirthDate     string   `json:"birth_date"`
+	ShowAge       bool     `json:"show_age"`
+	ShowBirthDate bool     `json:"show_birth_date"`
 }
 
-func toPublicProfile(u *models.User, languages []string) PublicProfile {
+// ageFrom returns the whole-year age at now for someone born on bd.
+func ageFrom(bd, now time.Time) int {
+	age := now.Year() - bd.Year()
+	if now.Month() < bd.Month() || (now.Month() == bd.Month() && now.Day() < bd.Day()) {
+		age--
+	}
+	return age
+}
+
+// toPublicProfile builds the viewer-facing profile. Account links (X, GitHub,
+// Zenn, LinkedIn, portfolio) are only included when showLinks is true — i.e.
+// the viewer is the owner or an accepted friend; otherwise they are blanked.
+func toPublicProfile(u *models.User, languages []string, viewerID uuid.UUID, now time.Time, showLinks bool) PublicProfile {
 	if languages == nil {
 		languages = []string{}
 	}
-	return PublicProfile{
-		ID:           u.ID,
-		Username:     u.Username,
-		DisplayName:  u.DisplayName,
-		Bio:          u.Bio,
-		XHandle:      u.XHandle,
-		GithubHandle: u.GithubHandle,
-		ZennHandle:   u.ZennHandle,
-		LinkedinURL:  u.LinkedinURL,
-		PortfolioURL: u.PortfolioURL,
-		Languages:    languages,
+	p := PublicProfile{
+		ID:              u.ID,
+		Username:        u.Username,
+		DisplayName:     u.DisplayName,
+		JobTitle:        u.JobTitle,
+		StatusMessage:   u.StatusMessage,
+		Languages:       languages,
+		LinksVisible:    showLinks,
+		AvatarUpdatedAt: u.AvatarUpdatedAt,
+		CreatedAt:       u.CreatedAt,
 	}
+	if showLinks {
+		p.XHandle = u.XHandle
+		p.GithubHandle = u.GithubHandle
+		p.ZennHandle = u.ZennHandle
+		p.LinkedinURL = u.LinkedinURL
+		p.PortfolioURL = u.PortfolioURL
+	}
+
+	isSelf := u.ID == viewerID
+	if u.BirthDate != nil {
+		if isSelf || u.ShowAge {
+			a := ageFrom(*u.BirthDate, now)
+			p.Age = &a
+		}
+		if isSelf || u.ShowBirthDate {
+			d := u.BirthDate.Format("2006-01-02")
+			p.BirthDate = &d
+		}
+	}
+	if isSelf {
+		sa, sb := u.ShowAge, u.ShowBirthDate
+		p.ShowAge = &sa
+		p.ShowBirthDate = &sb
+	}
+	return p
 }
 
 // Repository is the profile slice's data access.
@@ -92,6 +150,28 @@ func (r *Repository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, e
 		return nil, err
 	}
 	return &u, nil
+}
+
+// GetByUsername loads a user by username (case-insensitive), or returns
+// gorm.ErrRecordNotFound.
+func (r *Repository) GetByUsername(ctx context.Context, username string) (*models.User, error) {
+	var u models.User
+	if err := r.db.WithContext(ctx).First(&u, "lower(username) = lower(?)", username).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// AreFriends reports whether a and b have an accepted friendship (either
+// direction).
+func (r *Repository) AreFriends(ctx context.Context, a, b uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).
+		Model(&models.Friendship{}).
+		Where("status = ? AND ((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?))",
+			models.FriendshipAccepted, a, b, b, a).
+		Count(&count).Error
+	return count > 0, err
 }
 
 // UpdateProfile applies the given column updates to a user.
@@ -140,8 +220,9 @@ func NewService(repo *Repository, c cache.Cache) *Service {
 	return &Service{repo: repo, cache: c}
 }
 
-// Get returns a user's public profile.
-func (s *Service) Get(ctx context.Context, id uuid.UUID) (*PublicProfile, error) {
+// Get returns a user's public profile as seen by viewerID. The owner sees their
+// own age/birth date and visibility flags regardless of the toggles.
+func (s *Service) Get(ctx context.Context, id, viewerID uuid.UUID) (*PublicProfile, error) {
 	u, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -149,11 +230,37 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (*PublicProfile, error)
 		}
 		return nil, httperr.Internal("could not load profile").Wrap(err)
 	}
-	langs, err := s.repo.LanguagesFor(ctx, id)
+	return s.build(ctx, u, viewerID)
+}
+
+// GetByUsername returns a user's public profile by username (used by the
+// QR/add-by-username flow), as seen by viewerID.
+func (s *Service) GetByUsername(ctx context.Context, username string, viewerID uuid.UUID) (*PublicProfile, error) {
+	u, err := s.repo.GetByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, httperr.NotFound("user_not_found", "user not found")
+		}
+		return nil, httperr.Internal("could not load profile").Wrap(err)
+	}
+	return s.build(ctx, u, viewerID)
+}
+
+// build assembles a PublicProfile for the given user as seen by viewerID,
+// loading languages and gating account links to self/friends.
+func (s *Service) build(ctx context.Context, u *models.User, viewerID uuid.UUID) (*PublicProfile, error) {
+	langs, err := s.repo.LanguagesFor(ctx, u.ID)
 	if err != nil {
 		return nil, httperr.Internal("could not load languages").Wrap(err)
 	}
-	p := toPublicProfile(u, langs)
+	showLinks := u.ID == viewerID
+	if !showLinks {
+		showLinks, err = s.repo.AreFriends(ctx, u.ID, viewerID)
+		if err != nil {
+			return nil, httperr.Internal("could not check friendship").Wrap(err)
+		}
+	}
+	p := toPublicProfile(u, langs, viewerID, time.Now().UTC(), showLinks)
 	return &p, nil
 }
 
@@ -163,9 +270,18 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateReques
 	if n := len([]rune(display)); n < 1 || n > 50 {
 		return nil, httperr.BadRequest("invalid_profile", "display name must be 1-50 characters")
 	}
-	bio := strings.TrimSpace(req.Bio)
-	if len([]rune(bio)) > 160 {
-		return nil, httperr.BadRequest("invalid_profile", "bio must be at most 160 characters")
+	jobTitle := strings.TrimSpace(req.JobTitle)
+	if len([]rune(jobTitle)) > 60 {
+		return nil, httperr.BadRequest("invalid_profile", "job title must be at most 60 characters")
+	}
+	statusMessage := strings.TrimSpace(req.StatusMessage)
+	if len([]rune(statusMessage)) > 100 {
+		return nil, httperr.BadRequest("invalid_profile", "status message must be at most 100 characters")
+	}
+
+	birthDate, err := parseBirthDate(req.BirthDate)
+	if err != nil {
+		return nil, err
 	}
 
 	x := stripAt(req.XHandle)
@@ -196,13 +312,17 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateReques
 	}
 
 	fields := map[string]any{
-		"display_name":  display,
-		"bio":           bio,
-		"x_handle":      x,
-		"github_handle": gh,
-		"zenn_handle":   zenn,
-		"linkedin_url":  linkedin,
-		"portfolio_url": portfolio,
+		"display_name":    display,
+		"job_title":       jobTitle,
+		"status_message":  statusMessage,
+		"x_handle":        x,
+		"github_handle":   gh,
+		"zenn_handle":     zenn,
+		"linkedin_url":    linkedin,
+		"portfolio_url":   portfolio,
+		"birth_date":      birthDate, // *time.Time; nil clears the column
+		"show_age":        req.ShowAge,
+		"show_birth_date": req.ShowBirthDate,
 	}
 	if err := s.repo.UpdateProfile(ctx, userID, fields); err != nil {
 		return nil, httperr.Internal("could not update profile").Wrap(err)
@@ -215,32 +335,54 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateReques
 	if s.cache != nil {
 		_ = s.cache.Delete(ctx, network.GlobalCacheKey)
 	}
-	return s.Get(ctx, userID)
+	return s.Get(ctx, userID, userID)
+}
+
+// parseBirthDate parses "YYYY-MM-DD" (empty clears it), rejecting future dates
+// and implausibly old ones.
+func parseBirthDate(raw string) (*time.Time, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return nil, nil
+	}
+	d, err := time.Parse("2006-01-02", s)
+	if err != nil {
+		return nil, httperr.BadRequest("invalid_profile", "birth date must be YYYY-MM-DD")
+	}
+	now := time.Now().UTC()
+	if d.After(now) {
+		return nil, httperr.BadRequest("invalid_profile", "birth date cannot be in the future")
+	}
+	if d.Year() < now.Year()-150 {
+		return nil, httperr.BadRequest("invalid_profile", "birth date is not valid")
+	}
+	return &d, nil
 }
 
 func stripAt(s string) string {
 	return strings.TrimPrefix(strings.TrimSpace(s), "@")
 }
 
-// normaliseLanguages trims, validates, de-duplicates (case-insensitively) and
-// caps the language list while preserving the caller's ordering.
+// normaliseLanguages validates each entry against the canonical language list,
+// stores its canonical form (e.g. "go" -> "Go"), de-duplicates and caps the
+// list while preserving the caller's ordering.
 func normaliseLanguages(in []string) ([]string, error) {
 	out := make([]string, 0, len(in))
 	seen := make(map[string]struct{}, len(in))
 	for _, raw := range in {
-		l := strings.TrimSpace(raw)
-		if l == "" {
+		if strings.TrimSpace(raw) == "" {
 			continue
 		}
-		if !languagePattern.MatchString(l) {
-			return nil, httperr.BadRequest("invalid_profile", "invalid language: "+l)
+		canonical, ok := langs.Canonical(raw)
+		if !ok {
+			return nil, httperr.BadRequest("invalid_profile", "unknown language: "+raw)
 		}
-		key := strings.ToLower(l)
+		key := strings.ToLower(canonical)
 		if _, dup := seen[key]; dup {
 			continue
 		}
 		seen[key] = struct{}{}
-		out = append(out, l)
+		out = append(out, canonical)
 	}
 	if len(out) > maxLanguages {
 		return nil, httperr.BadRequest("invalid_profile", "too many languages (max 30)")
@@ -271,6 +413,7 @@ func NewHandler(svc *Service) *Handler {
 
 // RegisterRoutes mounts the profile routes behind auth.
 func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc) {
+	g.GET("/users/by-username/:username", h.GetByUsername, authmw)
 	g.GET("/users/:id", h.Get, authmw)
 	g.PUT("/me/profile", h.Update, authmw)
 }
@@ -281,7 +424,28 @@ func (h *Handler) Get(c echo.Context) error {
 	if err != nil {
 		return httperr.BadRequest("invalid_id", "invalid user id")
 	}
-	p, err := h.svc.Get(c.Request().Context(), id)
+	viewerID, err := middleware.MustUserID(c)
+	if err != nil {
+		return err
+	}
+	p, err := h.svc.Get(c.Request().Context(), id, viewerID)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, p)
+}
+
+// GetByUsername handles GET /users/by-username/:username.
+func (h *Handler) GetByUsername(c echo.Context) error {
+	username := strings.TrimSpace(c.Param("username"))
+	if username == "" {
+		return httperr.BadRequest("invalid_username", "invalid username")
+	}
+	viewerID, err := middleware.MustUserID(c)
+	if err != nil {
+		return err
+	}
+	p, err := h.svc.GetByUsername(c.Request().Context(), username, viewerID)
 	if err != nil {
 		return err
 	}

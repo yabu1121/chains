@@ -1,7 +1,8 @@
 // Shapes mirror the backend JSON responses (see internal/features/*).
 
 export interface SocialProfile {
-  bio: string;
+  job_title: string;
+  status_message: string;
   x_handle: string;
   github_handle: string;
   zenn_handle: string;
@@ -14,6 +15,7 @@ export interface User extends SocialProfile {
   email: string;
   username: string;
   display_name: string;
+  avatar_updated_at: string | null;
   created_at: string;
 }
 
@@ -22,12 +24,25 @@ export interface PublicProfile extends SocialProfile {
   username: string;
   display_name: string;
   languages: string[];
+  // True only when the viewer (self or an accepted friend) may see the
+  // account links; otherwise the link fields are blank.
+  links_visible: boolean;
+  avatar_updated_at: string | null;
+  created_at: string;
+  age: number | null;
+  birth_date: string | null;
+  // Only populated when viewing your own profile (for the editor); null otherwise.
+  show_age: boolean | null;
+  show_birth_date: boolean | null;
 }
 
 export interface UserSummary {
   id: string;
   username: string;
   display_name: string;
+  avatar_updated_at: string | null;
+  // Populated only for friend lists; absent elsewhere.
+  languages?: string[];
 }
 
 export interface AuthResponse {
@@ -57,6 +72,8 @@ export interface ApiErrorBody {
 export interface NetworkNode {
   id: string;
   display_name: string;
+  avatar_updated_at: string | null;
+  languages: string[];
 }
 
 export interface NetworkLink {
