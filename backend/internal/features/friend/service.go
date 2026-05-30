@@ -23,6 +23,7 @@ type store interface {
 	DeleteFriendship(ctx context.Context, id uuid.UUID) error
 	DeleteFriendshipBetween(ctx context.Context, a, b uuid.UUID) (int64, error)
 	ListAcceptedFriendships(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
+	LanguagesByUsers(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]string, error)
 	ListPendingIncoming(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
 	ListPendingOutgoing(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
 	CountPendingIncoming(ctx context.Context, userID uuid.UUID) (int64, error)
@@ -199,6 +200,7 @@ func (s *Service) ListFriends(ctx context.Context, userID uuid.UUID) ([]FriendSu
 	}
 
 	out := make([]FriendSummary, 0, len(rows))
+	ids := make([]uuid.UUID, 0, len(rows))
 	for i := range rows {
 		other := otherParty(&rows[i], userID)
 		if other == nil {
@@ -209,6 +211,16 @@ func (s *Service) ListFriends(ctx context.Context, userID uuid.UUID) ([]FriendSu
 			since = *rows[i].AcceptedAt
 		}
 		out = append(out, FriendSummary{User: userSummary(other), FriendsSince: since})
+		ids = append(ids, other.ID)
+	}
+
+	// Attach each friend's languages so the list can be filtered by language.
+	langsByUser, err := s.store.LanguagesByUsers(ctx, ids)
+	if err != nil {
+		return nil, httperr.Internal("could not load languages").Wrap(err)
+	}
+	for i := range out {
+		out[i].User.Languages = langsByUser[out[i].User.ID]
 	}
 
 	s.cache.SetFriendList(ctx, userID, out)

@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
+import { useReveal } from "@/lib/anim";
 
 export default function RegisterPage() {
   const { user, loading, register } = useAuth();
   const router = useRouter();
+  const brandRef = useReveal<HTMLHeadingElement>({ scale: 0.9, y: 0 });
+  const cardRef = useReveal<HTMLFormElement>({ delay: 90 });
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -36,10 +39,14 @@ export default function RegisterPage() {
 
   return (
     <div className="container center-narrow">
-      <h1 className="brand" style={{ textAlign: "center", marginBottom: 24 }}>
+      <h1
+        ref={brandRef}
+        className="brand"
+        style={{ textAlign: "center", marginBottom: 24 }}
+      >
         ⛓ chains
       </h1>
-      <form className="card" onSubmit={onSubmit}>
+      <form ref={cardRef} className="card" onSubmit={onSubmit}>
         <h2 className="section-title">Create account</h2>
         <label htmlFor="name">Display name</label>
         <input

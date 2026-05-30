@@ -19,8 +19,10 @@ import (
 )
 
 // GlobalCacheKey is the cache key for the global graph. It is exported so the
-// slices that mutate the graph (friend, profile) can invalidate it.
-const GlobalCacheKey = "network:global:v1"
+// slices that mutate the graph (friend, profile) can invalidate it. The version
+// suffix is bumped whenever the payload shape changes (v2 added per-node
+// languages).
+const GlobalCacheKey = "network:global:v2"
 
 const (
 	maxNodes = 2000
@@ -30,8 +32,10 @@ const (
 
 // Node is a user vertex.
 type Node struct {
-	ID          uuid.UUID `json:"id"`
-	DisplayName string    `json:"display_name"`
+	ID              uuid.UUID  `json:"id" gorm:"column:id"`
+	DisplayName     string     `json:"display_name" gorm:"column:display_name"`
+	AvatarUpdatedAt *time.Time `json:"avatar_updated_at" gorm:"column:avatar_updated_at"`
+	Languages       []string   `json:"languages" gorm:"-"`
 }
 
 // Link is an accepted-friendship edge. Source/Target are user IDs.
@@ -62,11 +66,32 @@ func (r *Repository) Users(ctx context.Context, limit int) ([]Node, error) {
 	var nodes []Node
 	err := r.db.WithContext(ctx).
 		Model(&models.User{}).
-		Select("id", "display_name").
+		Select("id", "display_name", "avatar_updated_at").
 		Order("created_at ASC").
 		Limit(limit).
 		Find(&nodes).Error
 	return nodes, err
+}
+
+// LanguagesByUsers returns each given user's languages (in their chosen order),
+// keyed by user ID, in a single query. Users with no languages are absent.
+func (r *Repository) LanguagesByUsers(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]string, error) {
+	out := make(map[uuid.UUID][]string)
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []models.UserLanguage
+	err := r.db.WithContext(ctx).
+		Where("user_id IN ?", ids).
+		Order("user_id, position ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.UserID] = append(out[row.UserID], row.Language)
+	}
+	return out, nil
 }
 
 // AcceptedEdges returns up to limit accepted-friendship edges.
@@ -111,8 +136,24 @@ func (s *Service) Global(ctx context.Context) (*Response, error) {
 	}
 
 	present := make(map[uuid.UUID]struct{}, len(nodes))
-	for _, n := range nodes {
+	ids := make([]uuid.UUID, len(nodes))
+	for i, n := range nodes {
 		present[n.ID] = struct{}{}
+		ids[i] = n.ID
+	}
+
+	// Attach each node's languages so the frontend can filter the graph by
+	// language without an extra round-trip per node.
+	langsByUser, err := s.repo.LanguagesByUsers(ctx, ids)
+	if err != nil {
+		return nil, httperr.Internal("could not load languages").Wrap(err)
+	}
+	for i := range nodes {
+		if ls := langsByUser[nodes[i].ID]; ls != nil {
+			nodes[i].Languages = ls
+		} else {
+			nodes[i].Languages = []string{}
+		}
 	}
 
 	edges, err := s.repo.AcceptedEdges(ctx, maxLinks)

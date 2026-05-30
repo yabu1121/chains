@@ -9,11 +9,15 @@ import (
 )
 
 // UserSummary is the compact, public view of a user embedded in friend/request
-// lists. It exposes the handle, never the email.
+// lists. It exposes the handle, never the email. Languages is populated only
+// for friend lists (so they can be filtered by language); it is omitted
+// elsewhere.
 type UserSummary struct {
-	ID          uuid.UUID `json:"id"`
-	Username    string    `json:"username"`
-	DisplayName string    `json:"display_name"`
+	ID              uuid.UUID  `json:"id"`
+	Username        string     `json:"username"`
+	DisplayName     string     `json:"display_name"`
+	AvatarUpdatedAt *time.Time `json:"avatar_updated_at"`
+	Languages       []string   `json:"languages,omitempty"`
 }
 
 // FriendSummary is one accepted friend.
@@ -40,5 +44,10 @@ type BlockInput struct {
 }
 
 func userSummary(u *models.User) UserSummary {
-	return UserSummary{ID: u.ID, Username: u.Username, DisplayName: u.DisplayName}
+	return UserSummary{
+		ID:              u.ID,
+		Username:        u.Username,
+		DisplayName:     u.DisplayName,
+		AvatarUpdatedAt: u.AvatarUpdatedAt,
+	}
 }

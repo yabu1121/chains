@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { PublicProfile } from "@/lib/types";
+import { Avatar } from "./Avatar";
 
 interface LinkItem {
   label: string;
@@ -19,11 +20,30 @@ function links(p: PublicProfile): LinkItem[] {
   return out;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  const a = parts[0]?.[0] ?? "?";
-  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (a + b).toUpperCase();
+/** Builds the muted meta line: age · born · joined date. */
+function profileMeta(p: PublicProfile): string {
+  const parts: string[] = [];
+  if (p.age != null) parts.push(`Age ${p.age}`);
+  if (p.birth_date) {
+    const d = new Date(p.birth_date);
+    parts.push(
+      `Born ${d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}`,
+    );
+  }
+  if (p.created_at) {
+    const d = new Date(p.created_at);
+    parts.push(
+      `Joined ${d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+      })}`,
+    );
+  }
+  return parts.join(" · ");
 }
 
 export function ProfileView({
@@ -34,20 +54,32 @@ export function ProfileView({
   actions?: ReactNode;
 }) {
   const items = links(profile);
+  const meta = profileMeta(profile);
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span className="avatar" style={{ width: 48, height: 48, fontSize: 18 }}>
-          {initials(profile.display_name)}
-        </span>
+        <Avatar user={profile} size={48} />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>{profile.display_name}</div>
           <div className="muted">@{profile.username}</div>
+          {profile.job_title ? (
+            <div style={{ color: "var(--accent)", fontSize: 14, fontWeight: 600 }}>
+              {profile.job_title}
+            </div>
+          ) : null}
         </div>
       </div>
 
-      {profile.bio ? (
-        <p style={{ marginTop: 14, whiteSpace: "pre-wrap" }}>{profile.bio}</p>
+      {meta ? (
+        <div className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+          {meta}
+        </div>
+      ) : null}
+
+      {profile.status_message ? (
+        <p style={{ marginTop: 14, whiteSpace: "pre-wrap" }}>
+          {profile.status_message}
+        </p>
       ) : null}
 
       {profile.languages.length > 0 ? (
@@ -91,9 +123,14 @@ export function ProfileView({
             </a>
           ))}
         </div>
-      ) : (
+      ) : profile.links_visible ? (
         <p className="empty" style={{ marginTop: 14 }}>
           No links yet.
+        </p>
+      ) : (
+        <p className="empty" style={{ marginTop: 14 }}>
+          🔒 Links are shared with friends only. Add {profile.display_name} as a
+          friend to see them.
         </p>
       )}
 

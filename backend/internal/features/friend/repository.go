@@ -103,6 +103,27 @@ func (r *Repository) ListAcceptedFriendships(ctx context.Context, userID uuid.UU
 	return rows, err
 }
 
+// LanguagesByUsers returns each given user's languages (in their chosen order),
+// keyed by user ID, in a single query. Users with no languages are absent.
+func (r *Repository) LanguagesByUsers(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]string, error) {
+	out := make(map[uuid.UUID][]string)
+	if len(ids) == 0 {
+		return out, nil
+	}
+	var rows []models.UserLanguage
+	err := r.db.WithContext(ctx).
+		Where("user_id IN ?", ids).
+		Order("user_id, position ASC").
+		Find(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.UserID] = append(out[row.UserID], row.Language)
+	}
+	return out, nil
+}
+
 // ListPendingIncoming returns pending requests addressed to the user, with the
 // requester preloaded.
 func (r *Repository) ListPendingIncoming(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error) {

@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cymed/chains/backend/internal/features/auth"
+	"github.com/cymed/chains/backend/internal/features/avatar"
 	"github.com/cymed/chains/backend/internal/features/friend"
 	"github.com/cymed/chains/backend/internal/features/network"
 	"github.com/cymed/chains/backend/internal/features/profile"
@@ -63,12 +64,14 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 
 	networkSvc := network.NewService(network.NewRepository(db), c)
 	profileSvc := profile.NewService(profile.NewRepository(db), c)
+	avatarSvc := avatar.NewService(avatar.NewRepository(db), c)
 
 	authHandler := auth.NewHandler(authSvc)
 	friendHandler := friend.NewHandler(friendSvc)
 	userHandler := user.NewHandler(user.NewRepository(db))
 	networkHandler := network.NewHandler(networkSvc)
 	profileHandler := profile.NewHandler(profileSvc)
+	avatarHandler := avatar.NewHandler(avatarSvc)
 
 	e.GET("/health", health)
 
@@ -79,6 +82,7 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	user.RegisterRoutes(api, userHandler, authmw)
 	network.RegisterRoutes(api, networkHandler, authmw)
 	profile.RegisterRoutes(api, profileHandler, authmw)
+	avatar.RegisterRoutes(api, avatarHandler, authmw)
 
 	return e
 }

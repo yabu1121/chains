@@ -27,7 +27,8 @@ func NewCache(c cache.Cache, ttl time.Duration) *Cache {
 }
 
 func friendsListKey(userID uuid.UUID) string {
-	return "friends:list:" + userID.String()
+	// v2: friend summaries now carry languages.
+	return "friends:list:v2:" + userID.String()
 }
 
 func incomingCountKey(userID uuid.UUID) string {

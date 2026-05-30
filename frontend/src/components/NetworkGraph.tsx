@@ -3,8 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/lib/auth";
-import { useFriends, useNetwork } from "@/lib/hooks";
+import { avatarUrl } from "@/lib/api";
+import {
+  useFriends,
+  useIncomingRequests,
+  useNetwork,
+  useOutgoingRequests,
+} from "@/lib/hooks";
+import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
+import { useReveal } from "@/lib/anim";
 import { ProfileModal } from "./ProfileModal";
+import { Select } from "./Select";
 
 // react-force-graph-2d reaches for `window`, so it must load client-only.
 // Its prop generics don't survive next/dynamic cleanly, hence the cast.
@@ -20,14 +29,23 @@ interface GraphNode {
   id: string;
   display_name: string;
   role: Role;
+  avatar_updated_at: string | null;
+  languages: string[];
   // populated by the force simulation at runtime
   x?: number;
   y?: number;
 }
 
+interface GraphLink {
+  source: string;
+  target: string;
+  // True for a friend request still in flight (rendered as a dashed edge).
+  pending: boolean;
+}
+
 const COLORS: Record<Role, string> = {
-  self: "#5b8cff",
-  friend: "#3ecf8e",
+  self: "#4cb5f5", // bluesky
+  friend: "#34675c", // pine
   other: "#6b7280",
 };
 
@@ -56,20 +74,48 @@ export function NetworkGraph() {
   const { user } = useAuth();
   const { graph, isLoading, error } = useNetwork();
   const { friends } = useFriends();
+  const { requests: incoming } = useIncomingRequests();
+  const { requests: outgoing } = useOutgoingRequests();
   const { ref, size } = useSize();
+  const panelRef = useReveal<HTMLDivElement>({ y: 8 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [language, setLanguage] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const fgRef = useRef<any>(null);
+  // Center on the viewer's own node once the layout settles (re-arm per load).
+  const focusedRef = useRef(false);
+  useEffect(() => {
+    focusedRef.current = false;
+  }, [graph]);
+
+  // Preload avatar images so nodeCanvasObject can draw them. Keyed by user id;
+  // each <img> carries its version in dataset.v so a changed avatar reloads.
+  const imgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
+  const [, redraw] = useState(0);
 
   const friendIds = useMemo(
     () => new Set(friends.map((f) => f.user.id)),
     [friends],
   );
 
+  // People with an unresolved request in either direction.
+  const pendingIds = useMemo(
+    () =>
+      new Set([
+        ...incoming.map((r) => r.user.id),
+        ...outgoing.map((r) => r.user.id),
+      ]),
+    [incoming, outgoing],
+  );
+
   // Build a fresh, mutable graph for the simulation, tagging each node's role.
   const data = useMemo(() => {
-    if (!graph) return { nodes: [] as GraphNode[], links: [] };
+    if (!graph) return { nodes: [] as GraphNode[], links: [] as GraphLink[] };
     const nodes: GraphNode[] = graph.nodes.map((n) => ({
       id: n.id,
       display_name: n.display_name,
+      avatar_updated_at: n.avatar_updated_at,
+      languages: n.languages ?? [],
       role:
         n.id === user?.id
           ? "self"
@@ -77,13 +123,58 @@ export function NetworkGraph() {
             ? "friend"
             : "other",
     }));
-    const links = graph.links.map((l) => ({ source: l.source, target: l.target }));
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const links: GraphLink[] = graph.links.map((l) => ({
+      source: l.source,
+      target: l.target,
+      pending: false,
+    }));
+    // Draw a dashed edge from you to anyone with a request still in flight.
+    // Skip ids absent from the (possibly capped) node set to keep links valid.
+    if (user?.id && nodeIds.has(user.id)) {
+      for (const id of pendingIds) {
+        if (id !== user.id && nodeIds.has(id)) {
+          links.push({ source: user.id, target: id, pending: true });
+        }
+      }
+    }
     return { nodes, links };
-  }, [graph, user?.id, friendIds]);
+  }, [graph, user?.id, friendIds, pendingIds]);
+
+  // Languages that at least one node in the graph lists, in canonical order.
+  const graphLanguages = useMemo(() => {
+    const present = new Set(data.nodes.flatMap((n) => n.languages));
+    return PROGRAMMING_LANGUAGES.filter((lang) => present.has(lang));
+  }, [data]);
+
+  // A node matches when no filter is set, or it lists the selected language.
+  const matches = (n: GraphNode) => !language || n.languages.includes(language);
+  const matchCount = language
+    ? data.nodes.filter((n) => n.languages.includes(language)).length
+    : data.nodes.length;
+
+  useEffect(() => {
+    const cache = imgCacheRef.current;
+    for (const n of data.nodes) {
+      const v = n.avatar_updated_at;
+      if (!v) {
+        cache.delete(n.id);
+        continue;
+      }
+      const existing = cache.get(n.id);
+      if (existing && existing.dataset.v === v) continue;
+      const img = new Image();
+      img.dataset.v = v;
+      img.onload = () => redraw((t) => t + 1); // repaint once the image is ready
+      img.src = avatarUrl(n.id, v);
+      cache.set(n.id, img);
+    }
+  }, [data]);
 
   return (
     <>
     <div
+      ref={panelRef}
       style={{
         flex: 1,
         minHeight: 0,
@@ -103,10 +194,26 @@ export function NetworkGraph() {
         <h2 className="section-title" style={{ margin: 0 }}>
           Global network
         </h2>
-        <div className="muted" style={{ fontSize: 13 }}>
-          <Legend color={COLORS.self} label="You" />
-          <Legend color={COLORS.friend} label="Friends" />
-          <Legend color={COLORS.other} label="Everyone" />
+        <div
+          style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}
+        >
+          {graphLanguages.length > 0 ? (
+            <Select
+              value={language}
+              onChange={setLanguage}
+              ariaLabel="Highlight by language"
+              options={[
+                { value: "", label: "All languages" },
+                ...graphLanguages.map((lang) => ({ value: lang, label: lang })),
+              ]}
+            />
+          ) : null}
+          <div className="muted" style={{ fontSize: 13 }}>
+            <Legend color={COLORS.self} label="You" />
+            <Legend color={COLORS.friend} label="Friends" />
+            <Legend color={COLORS.other} label="Everyone" />
+            <Legend color={COLORS.self} label="Pending" dashed />
+          </div>
         </div>
       </div>
 
@@ -130,9 +237,11 @@ export function NetworkGraph() {
           >
             {data.nodes.length} people · {data.links.length} connections
             {graph.truncated ? " (showing a capped subset)" : ""}
+            {language ? ` · ${matchCount} use ${language}` : ""}
           </p>
           <div
             ref={ref}
+            className="graph-canvas"
             style={{
               flex: 1,
               minHeight: 0,
@@ -142,14 +251,26 @@ export function NetworkGraph() {
           >
             {size.width > 0 && size.height > 0 ? (
               <ForceGraph2D
+                ref={fgRef}
                 graphData={data}
                 width={size.width}
                 height={size.height}
                 backgroundColor="#ffffff"
                 cooldownTicks={120}
+                onEngineStop={() => {
+                  if (focusedRef.current) return;
+                  const self = data.nodes.find((n) => n.role === "self");
+                  if (!self || self.x == null || self.y == null) return;
+                  focusedRef.current = true;
+                  fgRef.current?.centerAt(self.x, self.y, 800);
+                  fgRef.current?.zoom(2.5, 800);
+                }}
                 onNodeClick={(node: GraphNode) => setSelectedId(node.id)}
-                linkColor={() => "rgba(104,112,131,0.35)"}
-                linkWidth={1}
+                linkColor={(l: GraphLink) =>
+                  l.pending ? COLORS.self : "rgba(104,112,131,0.35)"
+                }
+                linkWidth={(l: GraphLink) => (l.pending ? 1.5 : 1)}
+                linkLineDash={(l: GraphLink) => (l.pending ? [3, 3] : null)}
                 nodeRelSize={4}
                 nodeLabel={(n: GraphNode) => n.display_name}
                 nodeCanvasObject={(
@@ -157,14 +278,34 @@ export function NetworkGraph() {
                   ctx: CanvasRenderingContext2D,
                   scale: number,
                 ) => {
+                  const dim = !matches(node);
+                  ctx.globalAlpha = dim ? 0.12 : 1;
                   const r = node.role === "self" ? 6 : node.role === "friend" ? 4.5 : 3;
                   const x = node.x ?? 0;
                   const y = node.y ?? 0;
-                  ctx.beginPath();
-                  ctx.arc(x, y, r, 0, 2 * Math.PI);
-                  ctx.fillStyle = COLORS[node.role];
-                  ctx.fill();
-                  if (node.role !== "other") {
+                  const img = node.avatar_updated_at
+                    ? imgCacheRef.current.get(node.id)
+                    : undefined;
+                  if (img && img.complete && img.naturalWidth > 0) {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, 2 * Math.PI);
+                    ctx.closePath();
+                    ctx.clip();
+                    ctx.drawImage(img, x - r, y - r, r * 2, r * 2);
+                    ctx.restore();
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, 2 * Math.PI);
+                    ctx.lineWidth = 0.6;
+                    ctx.strokeStyle = COLORS[node.role];
+                    ctx.stroke();
+                  } else {
+                    ctx.beginPath();
+                    ctx.arc(x, y, r, 0, 2 * Math.PI);
+                    ctx.fillStyle = COLORS[node.role];
+                    ctx.fill();
+                  }
+                  if (node.role !== "other" && !dim) {
                     const fontSize = 12 / scale;
                     ctx.font = `${fontSize}px sans-serif`;
                     ctx.fillStyle = "#1a1d24";
@@ -172,6 +313,7 @@ export function NetworkGraph() {
                     ctx.textBaseline = "top";
                     ctx.fillText(node.display_name, x, y + r + 1);
                   }
+                  ctx.globalAlpha = 1;
                 }}
                 nodePointerAreaPaint={(
                   node: GraphNode,
@@ -202,17 +344,34 @@ export function NetworkGraph() {
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
+function Legend({
+  color,
+  label,
+  dashed,
+}: {
+  color: string;
+  label: string;
+  dashed?: boolean;
+}) {
   return (
     <span style={{ marginLeft: 14, whiteSpace: "nowrap" }}>
       <span
         style={{
           display: "inline-block",
-          width: 9,
-          height: 9,
-          borderRadius: "50%",
-          background: color,
+          verticalAlign: "middle",
           marginRight: 5,
+          ...(dashed
+            ? {
+                width: 14,
+                height: 0,
+                borderTop: `1.5px dashed ${color}`,
+              }
+            : {
+                width: 9,
+                height: 9,
+                borderRadius: "50%",
+                background: color,
+              }),
         }}
       />
       {label}
