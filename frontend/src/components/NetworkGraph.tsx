@@ -11,7 +11,7 @@ import {
   useOutgoingRequests,
 } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
-import { useReveal } from "@/lib/anim";
+import { prefersReducedMotion, useReveal } from "@/lib/anim";
 import { ProfileModal } from "./ProfileModal";
 import { Select } from "./Select";
 
@@ -19,7 +19,7 @@ import { Select } from "./Select";
 // Its prop generics don't survive next/dynamic cleanly, hence the cast.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
-  ssr: false,
+  ssr: true,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }) as any;
 
@@ -70,7 +70,11 @@ function useSize() {
   return { ref, size };
 }
 
-export function NetworkGraph() {
+export function NetworkGraph({
+  onEditProfile,
+}: {
+  onEditProfile?: () => void;
+}) {
   const { user } = useAuth();
   const { graph, isLoading, error } = useNetwork();
   const { friends } = useFriends();
@@ -98,16 +102,6 @@ export function NetworkGraph() {
     [friends],
   );
 
-  // People with an unresolved request in either direction.
-  const pendingIds = useMemo(
-    () =>
-      new Set([
-        ...incoming.map((r) => r.user.id),
-        ...outgoing.map((r) => r.user.id),
-      ]),
-    [incoming, outgoing],
-  );
-
   // Build a fresh, mutable graph for the simulation, tagging each node's role.
   const data = useMemo(() => {
     if (!graph) return { nodes: [] as GraphNode[], links: [] as GraphLink[] };
@@ -129,17 +123,23 @@ export function NetworkGraph() {
       target: l.target,
       pending: false,
     }));
-    // Draw a dashed edge from you to anyone with a request still in flight.
-    // Skip ids absent from the (possibly capped) node set to keep links valid.
+    // Directed dashed edges for in-flight requests, pointing from the requester
+    // to the addressee: outgoing → you to them, incoming → them to you. Skip
+    // ids absent from the (possibly capped) node set to keep links valid.
     if (user?.id && nodeIds.has(user.id)) {
-      for (const id of pendingIds) {
-        if (id !== user.id && nodeIds.has(id)) {
-          links.push({ source: user.id, target: id, pending: true });
+      for (const r of outgoing) {
+        if (r.user.id !== user.id && nodeIds.has(r.user.id)) {
+          links.push({ source: user.id, target: r.user.id, pending: true });
+        }
+      }
+      for (const r of incoming) {
+        if (r.user.id !== user.id && nodeIds.has(r.user.id)) {
+          links.push({ source: r.user.id, target: user.id, pending: true });
         }
       }
     }
     return { nodes, links };
-  }, [graph, user?.id, friendIds, pendingIds]);
+  }, [graph, user?.id, friendIds, incoming, outgoing]);
 
   // Languages that at least one node in the graph lists, in canonical order.
   const graphLanguages = useMemo(() => {
@@ -152,6 +152,13 @@ export function NetworkGraph() {
   const matchCount = language
     ? data.nodes.filter((n) => n.languages.includes(language)).length
     : data.nodes.length;
+
+  // Pending (request) edges are drawn as marching-ants dashes. When any exist
+  // we keep the canvas repainting every frame (autoPauseRedraw off) so the
+  // dashes flow; otherwise we let the graph idle. Held still for reduced motion.
+  const reduce = prefersReducedMotion();
+  const hasPending = data.links.some((l) => l.pending);
+  const animateEdges = hasPending && !reduce;
 
   useEffect(() => {
     const cache = imgCacheRef.current;
@@ -266,11 +273,68 @@ export function NetworkGraph() {
                   fgRef.current?.zoom(2.5, 800);
                 }}
                 onNodeClick={(node: GraphNode) => setSelectedId(node.id)}
+                autoPauseRedraw={!animateEdges}
                 linkColor={(l: GraphLink) =>
                   l.pending ? COLORS.self : "rgba(104,112,131,0.35)"
                 }
                 linkWidth={(l: GraphLink) => (l.pending ? 1.5 : 1)}
-                linkLineDash={(l: GraphLink) => (l.pending ? [3, 3] : null)}
+                // Solid edges render by default; pending edges are replaced
+                // with a hand-drawn dashed line whose offset marches with time.
+                linkCanvasObjectMode={(l: GraphLink) =>
+                  l.pending ? "replace" : undefined
+                }
+                linkCanvasObject={(
+                  // At render time source/target are the resolved node objects.
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  link: any,
+                  ctx: CanvasRenderingContext2D,
+                ) => {
+                  if (!link.pending) return;
+                  const s = link.source;
+                  const t = link.target;
+                  if (!s || !t || typeof s !== "object" || typeof t !== "object")
+                    return;
+                  const sx = s.x ?? 0;
+                  const sy = s.y ?? 0;
+                  const tx = t.x ?? 0;
+                  const ty = t.y ?? 0;
+                  const len = Math.hypot(tx - sx, ty - sy) || 1;
+                  const ux = (tx - sx) / len;
+                  const uy = (ty - sy) / len;
+                  // Stop short of the target node so the arrowhead sits beside it.
+                  const targetR =
+                    t.role === "self" ? 6 : t.role === "friend" ? 4.5 : 3;
+                  const headLen = 2.8;
+                  const tipX = tx - ux * (targetR + 1);
+                  const tipY = ty - uy * (targetR + 1);
+                  const baseX = tipX - ux * headLen;
+                  const baseY = tipY - uy * headLen;
+                  ctx.save();
+                  ctx.strokeStyle = COLORS.self;
+                  ctx.fillStyle = COLORS.self;
+                  ctx.lineWidth = 1.5;
+                  // Marching-ants shaft: a negative, time-driven dash offset
+                  // flows the dashes from the requester toward the addressee.
+                  // Frozen for reduced motion.
+                  ctx.setLineDash([3, 3]);
+                  ctx.lineDashOffset = reduce
+                    ? 0
+                    : -((performance.now() * 0.018) % 6);
+                  ctx.beginPath();
+                  ctx.moveTo(sx, sy);
+                  ctx.lineTo(baseX, baseY);
+                  ctx.stroke();
+                  // Solid arrowhead at the target end makes the edge directed.
+                  ctx.setLineDash([]);
+                  const hw = 1.7;
+                  ctx.beginPath();
+                  ctx.moveTo(tipX, tipY);
+                  ctx.lineTo(baseX - uy * hw, baseY + ux * hw);
+                  ctx.lineTo(baseX + uy * hw, baseY - ux * hw);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.restore();
+                }}
                 nodeRelSize={4}
                 nodeLabel={(n: GraphNode) => n.display_name}
                 nodeCanvasObject={(
@@ -338,7 +402,11 @@ export function NetworkGraph() {
       )}
     </div>
     {selectedId ? (
-      <ProfileModal userId={selectedId} onClose={() => setSelectedId(null)} />
+      <ProfileModal
+        userId={selectedId}
+        onClose={() => setSelectedId(null)}
+        onEditProfile={onEditProfile}
+      />
     ) : null}
     </>
   );

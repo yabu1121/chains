@@ -25,14 +25,23 @@ import {
   useIncomingCount,
 } from "@/lib/hooks";
 
-type Tab = "friends" | "requests" | "find" | "network" | "profile";
+// Top-level navigation. Friends/Requests/Find are nested inside the Friends
+// area (see FriendsArea), so the sidebar only carries these three.
+type Tab = "friends" | "network" | "profile";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "friends", label: "Friends" },
-  { key: "requests", label: "Requests" },
-  { key: "find", label: "Find" },
   { key: "network", label: "Network" },
   { key: "profile", label: "Profile" },
+];
+
+// Sub-tabs within the Friends area.
+type FriendsSub = "friends" | "requests" | "find";
+
+const FRIENDS_TABS: { key: FriendsSub; label: string }[] = [
+  { key: "friends", label: "Friends" },
+  { key: "requests", label: "Requests" },
+  { key: "find", label: "Find" },
 ];
 
 export default function FriendsPage() {
@@ -73,7 +82,7 @@ function NavLinks({
             />
           ) : null}
           <span className="nav-label">{label}</span>
-          {key === "requests" && incomingCount > 0 ? (
+          {key === "friends" && incomingCount > 0 ? (
             <span className="badge">{incomingCount}</span>
           ) : null}
         </button>
@@ -86,6 +95,9 @@ function Dashboard() {
   const [tab, setTab] = useState<Tab>("friends");
   // Sign of the last tab move (+1 right, -1 left) drives the slide direction.
   const [dir, setDir] = useState(0);
+  // Clicking the brand opens your own profile in the same modal a network node
+  // does (read-only ProfileView), rather than the editor tab.
+  const [showOwnProfile, setShowOwnProfile] = useState(false);
   const incomingCount = useIncomingCount();
   const { user, logout } = useAuth();
   const reduce = prefersReducedMotion();
@@ -101,7 +113,14 @@ function Dashboard() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <span className="brand">⛓ chains</span>
+        <button
+          type="button"
+          className="brand"
+          onClick={() => setShowOwnProfile(true)}
+          title="View your profile"
+        >
+          ⛓ chains
+        </button>
         <nav className="sidebar-nav">
           <NavLinks
             tab={tab}
@@ -120,7 +139,7 @@ function Dashboard() {
       </aside>
 
       <div className="app-main">
-        <Topbar />
+        <Topbar onBrandClick={() => setShowOwnProfile(true)} />
         <div className={`content${tab === "network" ? " content--full" : ""}`}>
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -131,15 +150,10 @@ function Dashboard() {
               exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
               transition={{ duration: reduce ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
             >
-              {tab === "friends" ? <FriendsTab /> : null}
-              {tab === "requests" ? <RequestsTab /> : null}
-              {tab === "find" ? (
-                <>
-                  <QRInvite />
-                  <FindPeople />
-                </>
+              {tab === "friends" ? <FriendsArea /> : null}
+              {tab === "network" ? (
+                <NetworkGraph onEditProfile={() => changeTab("profile")} />
               ) : null}
-              {tab === "network" ? <NetworkGraph /> : null}
               {tab === "profile" ? <ProfileEditor /> : null}
             </motion.div>
           </AnimatePresence>
@@ -154,7 +168,79 @@ function Dashboard() {
           idPrefix="bottom"
         />
       </nav>
+
+      {showOwnProfile && user ? (
+        <ProfileModal
+          userId={user.id}
+          onClose={() => setShowOwnProfile(false)}
+          onEditProfile={() => changeTab("profile")}
+        />
+      ) : null}
     </div>
+  );
+}
+
+// FriendsArea nests the people-focused views — your friends, pending requests
+// and finding people — behind a segmented sub-tab strip, so the top-level nav
+// stays at Friends / Network / Profile.
+function FriendsArea() {
+  const [sub, setSub] = useState<FriendsSub>("friends");
+  const [dir, setDir] = useState(0);
+  const incomingCount = useIncomingCount();
+  const reduce = prefersReducedMotion();
+  const dist = reduce ? 0 : 24;
+
+  const changeSub = (next: FriendsSub) => {
+    const idx = (s: FriendsSub) => FRIENDS_TABS.findIndex((x) => x.key === s);
+    setDir(idx(next) >= idx(sub) ? 1 : -1);
+    setSub(next);
+  };
+
+  return (
+    <>
+      <div className="subtabs" role="tablist">
+        {FRIENDS_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={sub === key}
+            className={`subtab${sub === key ? " active" : ""}`}
+            onClick={() => changeSub(key)}
+          >
+            {sub === key ? (
+              <motion.span
+                className="subtab-pill"
+                layoutId="friends-subtab-pill"
+                transition={{ type: "spring", stiffness: 480, damping: 38 }}
+              />
+            ) : null}
+            <span className="subtab-label">{label}</span>
+            {key === "requests" && incomingCount > 0 ? (
+              <span className="badge">{incomingCount}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={sub}
+          initial={{ opacity: 0, x: dir >= 0 ? dist : -dist }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
+          transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {sub === "friends" ? <FriendsTab /> : null}
+          {sub === "requests" ? <RequestsTab /> : null}
+          {sub === "find" ? (
+            <>
+              <QRInvite />
+              <FindPeople />
+            </>
+          ) : null}
+        </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -258,6 +344,7 @@ function RequestsTab() {
               <Person
                 key={r.request_id}
                 user={r.user}
+                arrow="in"
                 actions={
                   <>
                     <button onClick={() => acceptRequest(r.request_id)}>
@@ -290,6 +377,7 @@ function RequestsTab() {
                 key={r.request_id}
                 user={r.user}
                 subtitle="Pending…"
+                arrow="out"
                 actions={
                   <button
                     className="ghost"
