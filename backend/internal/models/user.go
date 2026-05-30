@@ -6,6 +6,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// Visibility controls who may see an individual profile field: everyone, the
+// owner's accepted friends, or no one but the owner.
+type Visibility string
+
+const (
+	VisibilityPublic  Visibility = "public"
+	VisibilityFriends Visibility = "friends"
+	VisibilityPrivate Visibility = "private"
+)
+
+// Valid reports whether v is one of the known visibility levels.
+func (v Visibility) Valid() bool {
+	switch v {
+	case VisibilityPublic, VisibilityFriends, VisibilityPrivate:
+		return true
+	default:
+		return false
+	}
+}
+
 // User is an application account.
 type User struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey"`
@@ -22,6 +42,15 @@ type User struct {
 	ZennHandle    string `gorm:"column:zenn_handle;not null;default:''"`
 	LinkedinURL   string `gorm:"column:linkedin_url;not null;default:''"`
 	PortfolioURL  string `gorm:"column:portfolio_url;not null;default:''"`
+
+	// Per-link visibility. Each account link is independently shown to everyone,
+	// to accepted friends only, or to no one but the owner. Defaults to
+	// VisibilityFriends to preserve the original friends-only link behaviour.
+	XHandleVisibility      Visibility `gorm:"column:x_handle_visibility;type:text;not null;default:'friends'"`
+	GithubHandleVisibility Visibility `gorm:"column:github_handle_visibility;type:text;not null;default:'friends'"`
+	ZennHandleVisibility   Visibility `gorm:"column:zenn_handle_visibility;type:text;not null;default:'friends'"`
+	LinkedinURLVisibility  Visibility `gorm:"column:linkedin_url_visibility;type:text;not null;default:'friends'"`
+	PortfolioURLVisibility Visibility `gorm:"column:portfolio_url_visibility;type:text;not null;default:'friends'"`
 
 	// Optional birth date with independent visibility for the derived age and
 	// the exact date. ShowAge defaults true, ShowBirthDate defaults false.

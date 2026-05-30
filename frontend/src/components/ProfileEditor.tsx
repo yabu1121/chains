@@ -13,11 +13,41 @@ import { ApiError, deleteAvatar, uploadAvatar } from "@/lib/api";
 import { getProfile, updateProfile, type ProfileInput } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { useReveal } from "@/lib/anim";
-import type { PublicProfile } from "@/lib/types";
+import type { PublicProfile, Visibility } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import { AvatarCropper } from "./AvatarCropper";
 import { Select } from "./Select";
 
-const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+// Cap on the *source* image the user picks. The cropper re-encodes to a small
+// square JPEG, so this can be generous; it only guards against absurd files.
+const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+
+// Visibility levels offered for each account link, widening to narrowing.
+const VISIBILITY_OPTIONS = [
+  { value: "public", label: "Everyone" },
+  { value: "friends", label: "Friends only" },
+  { value: "private", label: "private" },
+];
+
+// The account-link fields, each paired with its visibility key. Driving the
+// link inputs from this list keeps each value and its selector in sync.
+const LINK_FIELDS: {
+  key: "x_handle" | "github_handle" | "zenn_handle" | "linkedin_url" | "portfolio_url";
+  visKey:
+    | "x_handle_visibility"
+    | "github_handle_visibility"
+    | "zenn_handle_visibility"
+    | "linkedin_url_visibility"
+    | "portfolio_url_visibility";
+  label: string;
+  placeholder: string;
+}[] = [
+  { key: "x_handle", visKey: "x_handle_visibility", label: "X handle (without @)", placeholder: "elonmusk" },
+  { key: "github_handle", visKey: "github_handle_visibility", label: "GitHub handle", placeholder: "torvalds" },
+  { key: "zenn_handle", visKey: "zenn_handle_visibility", label: "Zenn handle", placeholder: "catnose" },
+  { key: "linkedin_url", visKey: "linkedin_url_visibility", label: "LinkedIn URL", placeholder: "https://linkedin.com/in/…" },
+  { key: "portfolio_url", visKey: "portfolio_url_visibility", label: "Portfolio URL", placeholder: "https://example.com" },
+];
 
 const EMPTY: ProfileInput = {
   display_name: "",
@@ -32,6 +62,11 @@ const EMPTY: ProfileInput = {
   birth_date: "",
   show_age: true,
   show_birth_date: false,
+  x_handle_visibility: "friends",
+  github_handle_visibility: "friends",
+  zenn_handle_visibility: "friends",
+  linkedin_url_visibility: "friends",
+  portfolio_url_visibility: "friends",
 };
 
 export function ProfileEditor() {
@@ -49,18 +84,41 @@ export function ProfileEditor() {
   const formRef = useReveal<HTMLFormElement>();
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  // Object URL of the picked image while the square cropper is open.
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
-  async function onPickAvatar(e: ChangeEvent<HTMLInputElement>) {
+  function closeCropper() {
+    setCropSrc((url) => {
+      if (url) URL.revokeObjectURL(url);
+      return null;
+    });
+  }
+
+  // Revoke any outstanding object URL on unmount.
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
+
+  function onPickAvatar(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-picking the same file
     if (!file) return;
     setAvatarError(null);
-    if (file.size > MAX_AVATAR_BYTES) {
-      setAvatarError("画像は2MBまでにしてください");
+    if (file.size > MAX_SOURCE_BYTES) {
+      setAvatarError("画像は15MBまでにしてください");
       return;
     }
+    // Open the cropper; the actual upload happens on confirm.
+    setCropSrc(URL.createObjectURL(file));
+  }
+
+  async function onCropped(blob: Blob) {
+    closeCropper();
     setAvatarBusy(true);
     try {
+      const file = new File([blob], "avatar.jpg", { type: "image/jpeg" });
       await uploadAvatar(file);
       await mutate();
       await refreshUser();
@@ -105,6 +163,11 @@ export function ProfileEditor() {
       birth_date: profile.birth_date ?? "",
       show_age: profile.show_age ?? true,
       show_birth_date: profile.show_birth_date ?? false,
+      x_handle_visibility: profile.link_visibility?.x_handle ?? "friends",
+      github_handle_visibility: profile.link_visibility?.github_handle ?? "friends",
+      zenn_handle_visibility: profile.link_visibility?.zenn_handle ?? "friends",
+      linkedin_url_visibility: profile.link_visibility?.linkedin_url ?? "friends",
+      portfolio_url_visibility: profile.link_visibility?.portfolio_url ?? "friends",
     });
   }, [profile]);
 
@@ -190,6 +253,14 @@ export function ProfileEditor() {
         />
       </div>
       {avatarError ? <p className="error">{avatarError}</p> : null}
+
+      {cropSrc ? (
+        <AvatarCropper
+          src={cropSrc}
+          onCancel={closeCropper}
+          onConfirm={onCropped}
+        />
+      ) : null}
 
       <label htmlFor="dn">Display name</label>
       <input
@@ -312,20 +383,33 @@ export function ProfileEditor() {
         </div>
       ) : null}
 
-      <label htmlFor="x">X handle (without @)</label>
-      <input id="x" value={form.x_handle} onChange={(e) => set("x_handle", e.target.value)} placeholder="elonmusk" />
-
-      <label htmlFor="gh">GitHub handle</label>
-      <input id="gh" value={form.github_handle} onChange={(e) => set("github_handle", e.target.value)} placeholder="torvalds" />
-
-      <label htmlFor="zenn">Zenn handle</label>
-      <input id="zenn" value={form.zenn_handle} onChange={(e) => set("zenn_handle", e.target.value)} placeholder="catnose" />
-
-      <label htmlFor="li">LinkedIn URL</label>
-      <input id="li" value={form.linkedin_url} onChange={(e) => set("linkedin_url", e.target.value)} placeholder="https://linkedin.com/in/…" />
-
-      <label htmlFor="pf">Portfolio URL</label>
-      <input id="pf" value={form.portfolio_url} onChange={(e) => set("portfolio_url", e.target.value)} placeholder="https://example.com" />
+      <label style={{ marginTop: 4 }}>Links &amp; visibility</label>
+      <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>
+        Choose who can see each link: everyone, friends only, or just you.
+      </p>
+      {LINK_FIELDS.map((f) => (
+        <div key={f.key} style={{ marginBottom: 10 }}>
+          <label htmlFor={f.key}>{f.label}</label>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              id={f.key}
+              value={form[f.key]}
+              onChange={(e) => set(f.key, e.target.value)}
+              placeholder={f.placeholder}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+            <div style={{ width: 150, flexShrink: 0 }}>
+              <Select
+                fullWidth
+                value={form[f.visKey]}
+                onChange={(v) => set(f.visKey, v as Visibility)}
+                ariaLabel={`${f.label} visibility`}
+                options={VISIBILITY_OPTIONS}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
 
       <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12 }}>
         <button className="primary" type="submit" disabled={status === "saving"} style={{ width: "auto" }}>

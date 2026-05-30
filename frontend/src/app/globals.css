@@ -72,7 +72,13 @@ html {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.16;
+  opacity: 0.26;
+}
+
+.chain-bg .cb-edge {
+  stroke: url(#cb-grad);
+  stroke-width: 1;
+  stroke-linecap: round;
 }
 
 .app-root {
@@ -210,6 +216,7 @@ a {
 
 /* Nav buttons – shared by sidebar and bottom bar */
 .navbtn {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -231,9 +238,11 @@ a {
 }
 
 /* Active fill is the sliding .nav-pill (framer-motion layoutId) sitting behind
-   the label — so the button itself stays transparent. */
+   the label — so the button itself stays transparent. White-based sidebar:
+   a soft tinted pill with the accent colour as text, not a solid dark fill. */
 .navbtn.active {
-  color: #fff;
+  color: var(--grad);
+  font-weight: 600;
 }
 
 .nav-pill {
@@ -241,8 +250,8 @@ a {
   inset: 0;
   z-index: 0;
   border-radius: 8px;
-  background: var(--grad);
-  box-shadow: 0 4px 14px rgba(52, 103, 92, 0.25);
+  background: rgba(52, 103, 92, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(52, 103, 92, 0.18);
 }
 
 .navbtn .nav-label,
@@ -265,6 +274,18 @@ a {
   font-size: 18px;
   letter-spacing: 0.5px;
   color: var(--grad);
+}
+
+/* The brand doubles as a button (click → your profile); strip the chrome but
+   keep the logo type, and let it sit left-aligned like the old text. */
+button.brand {
+  display: inline-block;
+  background: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .card {
@@ -662,6 +683,243 @@ button.ghost:hover {
   color: var(--danger);
   font-size: 14px;
   margin-top: 12px;
+}
+
+/* Friends sub-tabs: a segmented control with a white pill sliding behind the
+   active item (framer-motion layoutId). ────────────────────────────────── */
+.subtabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.subtab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.subtab:hover {
+  color: var(--text);
+}
+
+.subtab.active {
+  color: var(--pine);
+  font-weight: 600;
+}
+
+.subtab-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: 7px;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+}
+
+.subtab-label,
+.subtab .badge {
+  position: relative;
+  z-index: 1;
+}
+
+/* Avatar cropper ───────────────────────────────────────────────────────── */
+.cropper-viewport {
+  position: relative;
+  margin: 10px auto 0;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--panel-2);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cropper-viewport:active {
+  cursor: grabbing;
+}
+
+/* Inscribed circle showing how the square crop reads as a round avatar; the
+   large translucent ring dims everything outside it (clipped to the square). */
+.cropper-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+
+/* Profile view (shown in the network-node / brand modal) ───────────────── */
+.pv-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pv-name {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.pv-job {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(52, 103, 92, 0.1);
+  color: var(--pine);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.pv-bio {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.pv-section {
+  margin-top: 18px;
+}
+
+.pv-details {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  font-size: 14px;
+}
+
+.pv-detail-row {
+  display: contents;
+}
+
+.pv-details dt {
+  color: var(--muted);
+}
+
+.pv-details dd {
+  margin: 0;
+}
+
+.pv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pv-chip {
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-2);
+  font-size: 13px;
+}
+
+.pv-links {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pv-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.pv-link:hover {
+  background: var(--panel-2);
+  border-color: var(--pine);
+}
+
+.pv-link-text {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.pv-link-icon {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.pv-link-platform {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.pv-link-detail {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-link-go {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.pv-actions {
+  margin-top: 18px;
+}
+
+/* Pending-request arrow: a dashed shaft whose ants march toward the head,
+   continuously, to signal an in-flight friend request. Disabled for
+   reduced-motion via the global rule above. */
+.req-arrow {
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.req-arrow--in {
+  color: var(--pine);
+}
+
+.req-arrow--out {
+  color: var(--muted);
+}
+
+.req-arrow-shaft {
+  animation: march-ants 0.7s linear infinite;
+}
+
+@keyframes march-ants {
+  to {
+    /* Shift by one dash+gap (6 + 5) so the pattern loops seamlessly. */
+    stroke-dashoffset: -11;
+  }
 }
 
 .muted {

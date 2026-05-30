@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { ProfileView } from "./ProfileView";
 import { useAuth } from "@/lib/auth";
@@ -12,9 +13,13 @@ import type { PublicProfile } from "@/lib/types";
 export function ProfileModal({
   userId,
   onClose,
+  onEditProfile,
 }: {
   userId: string;
   onClose: () => void;
+  // When viewing your own profile and provided, shows an "Edit profile" action
+  // that closes the modal and jumps to the editor.
+  onEditProfile?: () => void;
 }) {
   const { user } = useAuth();
   const { friends } = useFriends();
@@ -32,6 +37,12 @@ export function ProfileModal({
   const isSelf = user?.id === userId;
   const isFriend = friends.some((f) => f.user.id === userId);
 
+  // Portal to <body> so the fixed-position overlay is anchored to the viewport,
+  // not to a transformed ancestor (e.g. the framer-motion tab panels), which
+  // would otherwise offset and clip it.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   async function onAdd() {
     setActionError(null);
     try {
@@ -42,7 +53,9 @@ export function ProfileModal({
     }
   }
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="modal-overlay" onClick={onClose} ref={overlayRef}>
       <div
         className="modal-card"
@@ -62,7 +75,18 @@ export function ProfileModal({
             profile={data}
             actions={
               isSelf ? (
-                <span className="muted">This is you.</span>
+                onEditProfile ? (
+                  <button
+                    onClick={() => {
+                      onClose();
+                      onEditProfile();
+                    }}
+                  >
+                    Edit profile
+                  </button>
+                ) : (
+                  <span className="muted">This is you.</span>
+                )
               ) : isFriend ? (
                 <span style={{ color: "var(--ok)" }}>You are friends ✓</span>
               ) : (
@@ -77,6 +101,7 @@ export function ProfileModal({
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

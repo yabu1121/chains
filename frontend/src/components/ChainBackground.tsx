@@ -1,101 +1,169 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { animate, stagger, svg } from "animejs";
 import { prefersReducedMotion } from "@/lib/anim";
 
-// A fixed, full-screen decorative layer that sits behind all content. It draws
-// a handful of "chains" (linked dots) that continuously draw themselves in,
-// drift, and pulse — so there is always gentle motion somewhere on screen. It
-// is purely decorative: pointer-events are off and it respects reduced motion.
+// A fixed, full-screen decorative layer behind all content: a constellation —
+// a field of glowing blue stars linked by faint lines into a network, echoing
+// the app's friend graph. Edges draw themselves in once, then breathe; stars
+// twinkle; the whole field drifts on a slow parallax. A dim far layer of dust
+// adds depth. Purely decorative: pointer-events off, respects reduced motion.
+// Coordinates live in a fixed 1200×800 viewBox scaled to cover the viewport.
 
-// Each chain is a polyline; dots sit on its vertices. Coordinates live in a
-// fixed 1200×800 viewBox that is scaled to cover the viewport.
-const CHAINS: { d: string; points: [number, number][] }[] = [
-  {
-    d: "M 60 140 L 240 220 L 430 130 L 620 240 L 820 150",
-    points: [
-      [60, 140],
-      [240, 220],
-      [430, 130],
-      [620, 240],
-      [820, 150],
-    ],
-  },
-  {
-    d: "M 1160 580 L 980 500 L 800 620 L 620 520 L 470 640",
-    points: [
-      [1160, 580],
-      [980, 500],
-      [800, 620],
-      [620, 520],
-      [470, 640],
-    ],
-  },
-  {
-    d: "M 140 720 L 330 640 L 520 740 L 700 650",
-    points: [
-      [140, 720],
-      [330, 640],
-      [520, 740],
-      [700, 650],
-    ],
-  },
-  {
-    d: "M 1120 120 L 960 230 L 1040 380 L 880 470",
-    points: [
-      [1120, 120],
-      [960, 230],
-      [1040, 380],
-      [880, 470],
-    ],
-  },
+// Star nodes. `r` varies the size so some read as brighter.
+const STARS: { x: number; y: number; r: number }[] = [
+  { x: 90, y: 130, r: 2.6 },
+  { x: 250, y: 230, r: 3.4 },
+  { x: 180, y: 380, r: 2 },
+  { x: 360, y: 110, r: 2.2 },
+  { x: 430, y: 300, r: 3 },
+  { x: 320, y: 470, r: 2.4 },
+  { x: 560, y: 180, r: 2.6 },
+  { x: 600, y: 380, r: 3.6 },
+  { x: 500, y: 560, r: 2.2 },
+  { x: 720, y: 280, r: 2.8 },
+  { x: 760, y: 470, r: 2.4 },
+  { x: 680, y: 640, r: 2 },
+  { x: 880, y: 160, r: 2.6 },
+  { x: 900, y: 360, r: 3.2 },
+  { x: 860, y: 560, r: 2.4 },
+  { x: 1040, y: 250, r: 2.8 },
+  { x: 1080, y: 460, r: 2.2 },
+  { x: 1000, y: 640, r: 2.6 },
+  { x: 1160, y: 130, r: 2 },
+  { x: 1150, y: 620, r: 2.4 },
+  { x: 140, y: 620, r: 2.6 },
+  { x: 340, y: 680, r: 2.2 },
+  { x: 540, y: 710, r: 2 },
+  { x: 220, y: 540, r: 1.8 },
+  { x: 760, y: 110, r: 2 },
+  { x: 1020, y: 120, r: 1.8 },
 ];
+
+// Per-star tint (by index) — mostly cool blues/cyans with occasional warm
+// gold/rose accents and whites that melt into the light background.
+const STAR_TINT = [
+  "blue", "cyan", "white", "gold", "blue", "cyan", "rose", "white", "blue",
+  "gold", "cyan", "blue", "rose", "white", "blue", "cyan", "gold", "blue",
+  "white", "cyan", "rose", "blue", "gold", "cyan", "white", "blue",
+];
+
+// Dim dust fills — soft tints that blend into white.
+const DUST_TINT = ["#cfe6ff", "#fff0c2", "#ffd8df", "#eef4ff", "#dcd2ff"];
+
+// Build the network: connect each star to its nearest neighbours within a
+// distance, capping per-node degree so the web stays tidy. Runs once.
+function buildEdges(maxDist: number, maxDeg: number) {
+  const pairs: { i: number; j: number; d: number }[] = [];
+  for (let i = 0; i < STARS.length; i++) {
+    for (let j = i + 1; j < STARS.length; j++) {
+      const dx = STARS[i].x - STARS[j].x;
+      const dy = STARS[i].y - STARS[j].y;
+      const d = Math.hypot(dx, dy);
+      if (d <= maxDist) pairs.push({ i, j, d });
+    }
+  }
+  pairs.sort((a, b) => a.d - b.d); // prefer the shortest links
+  const deg = new Array(STARS.length).fill(0);
+  const edges: { x1: number; y1: number; x2: number; y2: number }[] = [];
+  for (const { i, j } of pairs) {
+    if (deg[i] >= maxDeg || deg[j] >= maxDeg) continue;
+    deg[i]++;
+    deg[j]++;
+    edges.push({ x1: STARS[i].x, y1: STARS[i].y, x2: STARS[j].x, y2: STARS[j].y });
+  }
+  return edges;
+}
+
+// Dim background "dust": many tiny faint stars for depth (no links).
+const DUST: { x: number; y: number; r: number }[] = Array.from(
+  { length: 46 },
+  (_, i) => {
+    // Deterministic pseudo-scatter (no Math.random at module load).
+    const gx = (i * 137.5) % 1200;
+    const gy = (i * 83.3 + (i % 5) * 47) % 800;
+    return { x: gx, y: gy, r: 0.6 + ((i * 7) % 10) / 12 };
+  },
+);
 
 export function ChainBackground() {
   const rootRef = useRef<SVGSVGElement>(null);
+  const edges = useMemo(() => buildEdges(250, 3), []);
 
   useEffect(() => {
     const root = rootRef.current;
     if (!root || prefersReducedMotion()) return;
 
-    const lines = Array.from(root.querySelectorAll<SVGPathElement>(".cb-line"));
-    const dots = Array.from(root.querySelectorAll<SVGCircleElement>(".cb-dot"));
-    const groups = Array.from(root.querySelectorAll<SVGGElement>(".cb-group"));
+    const lines = Array.from(root.querySelectorAll<SVGLineElement>(".cb-edge"));
+    const stars = Array.from(root.querySelectorAll<SVGCircleElement>(".cb-star"));
+    const dust = Array.from(root.querySelectorAll<SVGCircleElement>(".cb-dust"));
+    const near = root.querySelector<SVGGElement>(".cb-near");
+    const far = root.querySelector<SVGGElement>(".cb-far");
 
-    // Continuously draw each chain in, hold, then erase — a flowing loop.
-    const drawAnim = animate(svg.createDrawable(lines), {
-      draw: ["0 0", "0 1", "1 1"],
-      duration: 5200,
-      delay: stagger(650),
+    // Edges draw themselves in once, then settle.
+    const drawIn = animate(svg.createDrawable(lines), {
+      draw: ["0 0", "0 1"],
+      duration: 1800,
+      delay: stagger(60, { from: "center" }),
+      ease: "outQuart",
+    });
+
+    // Links breathe faintly so the network feels alive.
+    const lineGlow = animate(lines, {
+      opacity: [0.12, 0.4, 0.12],
+      duration: 7000,
+      delay: stagger(120),
       loop: true,
       ease: "inOutSine",
     });
 
-    // Dots breathe in and out.
-    const dotAnim = animate(dots, {
-      opacity: [0.12, 0.5, 0.12],
-      duration: 3600,
-      delay: stagger(140),
+    // Stars twinkle in brightness (varied base sizes stay, glow does the rest).
+    const starAnim = animate(stars, {
+      opacity: [0.25, 0.95, 0.25],
+      duration: 3200,
+      delay: stagger(150, { from: "center" }),
       loop: true,
       ease: "inOutSine",
     });
 
-    // Whole chains drift slowly, each on its own offset.
-    const floatAnim = animate(groups, {
-      translateX: [0, 14],
-      translateY: [0, -18],
-      duration: 9000,
-      delay: stagger(1400),
+    const dustAnim = animate(dust, {
+      opacity: [0.05, 0.4, 0.05],
+      duration: 4200,
+      delay: stagger(90),
       loop: true,
-      alternate: true,
       ease: "inOutSine",
     });
+
+    // Parallax: the near network drifts more than the far dust.
+    const nearDrift = near
+      ? animate(near, {
+          translateX: [0, 18],
+          translateY: [0, -14],
+          duration: 16000,
+          loop: true,
+          alternate: true,
+          ease: "inOutSine",
+        })
+      : null;
+    const farDrift = far
+      ? animate(far, {
+          translateX: [0, -10],
+          translateY: [0, 8],
+          duration: 24000,
+          loop: true,
+          alternate: true,
+          ease: "inOutSine",
+        })
+      : null;
 
     return () => {
-      drawAnim.revert();
-      dotAnim.revert();
-      floatAnim.revert();
+      drawIn.revert();
+      lineGlow.revert();
+      starAnim.revert();
+      dustAnim.revert();
+      nearDrift?.revert();
+      farDrift?.revert();
     };
   }, []);
 
@@ -108,6 +176,7 @@ export function ChainBackground() {
       aria-hidden="true"
     >
       <defs>
+        {/* Edge blend: cool blues with soft warm accents that fade to white. */}
         <linearGradient
           id="cb-grad"
           gradientUnits="userSpaceOnUse"
@@ -116,35 +185,94 @@ export function ChainBackground() {
           x2="1200"
           y2="800"
         >
-          <stop offset="0%" stopColor="#4cb5f5" />
-          <stop offset="40%" stopColor="#34675c" />
-          <stop offset="74%" stopColor="#b3c100" />
-          <stop offset="100%" stopColor="#b7b8b6" />
+          <stop offset="0%" stopColor="#8fd4ff" />
+          <stop offset="32%" stopColor="#4f7cff" />
+          <stop offset="58%" stopColor="#a78bfa" />
+          <stop offset="80%" stopColor="#ffcaa8" />
+          <stop offset="100%" stopColor="#7fe6f0" />
         </linearGradient>
+        {/* Radial star fills — light centre melting into a tint. */}
+        <radialGradient id="cb-s-blue" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stopColor="#eaf6ff" />
+          <stop offset="45%" stopColor="#6cc5ff" />
+          <stop offset="100%" stopColor="#2f6bff" />
+        </radialGradient>
+        <radialGradient id="cb-s-cyan" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stopColor="#f0fdff" />
+          <stop offset="45%" stopColor="#7df0fb" />
+          <stop offset="100%" stopColor="#22d3ee" />
+        </radialGradient>
+        <radialGradient id="cb-s-white" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="55%" stopColor="#eaf2ff" />
+          <stop offset="100%" stopColor="#bcd6ff" />
+        </radialGradient>
+        <radialGradient id="cb-s-gold" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stopColor="#fffdf3" />
+          <stop offset="45%" stopColor="#ffe8a8" />
+          <stop offset="100%" stopColor="#f5c451" />
+        </radialGradient>
+        <radialGradient id="cb-s-rose" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0%" stopColor="#fff4f6" />
+          <stop offset="45%" stopColor="#ffc2cf" />
+          <stop offset="100%" stopColor="#ff7a90" />
+        </radialGradient>
+        {/* Layered bloom so stars glow. */}
+        <filter id="cb-glow" x="-150%" y="-150%" width="400%" height="400%">
+          <feGaussianBlur stdDeviation="4.5" result="wide" />
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.6" result="tight" />
+          <feMerge>
+            <feMergeNode in="wide" />
+            <feMergeNode in="wide" />
+            <feMergeNode in="tight" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
       </defs>
-      {CHAINS.map((chain, i) => (
-        <g className="cb-group" key={i}>
-          <path
-            className="cb-line"
-            d={chain.d}
-            fill="none"
-            stroke="url(#cb-grad)"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {chain.points.map(([x, y], j) => (
+
+      {/* Far dust layer (slow parallax, dim). */}
+      <g className="cb-far">
+        <g filter="url(#cb-glow)">
+          {DUST.map((d, i) => (
             <circle
-              className="cb-dot"
-              key={j}
-              cx={x}
-              cy={y}
-              r={5}
-              fill="url(#cb-grad)"
+              className="cb-dust"
+              key={i}
+              cx={d.x}
+              cy={d.y}
+              r={d.r}
+              fill={DUST_TINT[i % DUST_TINT.length]}
             />
           ))}
         </g>
-      ))}
+      </g>
+
+      {/* Near network: edges then star nodes. */}
+      <g className="cb-near">
+        <g className="cb-edges">
+          {edges.map((e, i) => (
+            <line
+              className="cb-edge"
+              key={i}
+              x1={e.x1}
+              y1={e.y1}
+              x2={e.x2}
+              y2={e.y2}
+            />
+          ))}
+        </g>
+        <g filter="url(#cb-glow)">
+          {STARS.map((s, i) => (
+            <circle
+              className="cb-star"
+              key={i}
+              cx={s.x}
+              cy={s.y}
+              r={s.r}
+              fill={`url(#cb-s-${STAR_TINT[i] ?? "blue"})`}
+            />
+          ))}
+        </g>
+      </g>
     </svg>
   );
 }

@@ -49,9 +49,10 @@ type PublicProfile struct {
 	PortfolioURL  string    `json:"portfolio_url"`
 	Languages     []string  `json:"languages"`
 
-	// LinksVisible is true when the viewer may see the account links above
-	// (self or an accepted friend). When false, those fields are blanked.
-	LinksVisible bool `json:"links_visible"`
+	// LinkVisibility carries the owner's per-link visibility levels. It is only
+	// populated when viewing your own profile (so the editor can prefill the
+	// selectors); nil otherwise. Links the viewer may not see are blanked above.
+	LinkVisibility *LinkVisibility `json:"link_visibility"`
 
 	Age           *int    `json:"age"`
 	BirthDate     *string `json:"birth_date"`
@@ -62,8 +63,18 @@ type PublicProfile struct {
 	CreatedAt       time.Time  `json:"created_at"`
 }
 
+// LinkVisibility is the per-link visibility level for each account link.
+type LinkVisibility struct {
+	XHandle      models.Visibility `json:"x_handle"`
+	GithubHandle models.Visibility `json:"github_handle"`
+	ZennHandle   models.Visibility `json:"zenn_handle"`
+	LinkedinURL  models.Visibility `json:"linkedin_url"`
+	PortfolioURL models.Visibility `json:"portfolio_url"`
+}
+
 // UpdateRequest is the body for editing one's own profile. BirthDate is
-// "YYYY-MM-DD" or empty to clear.
+// "YYYY-MM-DD" or empty to clear. The *_visibility fields accept "public",
+// "friends" or "private" (empty defaults to "friends").
 type UpdateRequest struct {
 	DisplayName   string   `json:"display_name"`
 	JobTitle      string   `json:"job_title"`
@@ -77,6 +88,12 @@ type UpdateRequest struct {
 	BirthDate     string   `json:"birth_date"`
 	ShowAge       bool     `json:"show_age"`
 	ShowBirthDate bool     `json:"show_birth_date"`
+
+	XHandleVisibility      string `json:"x_handle_visibility"`
+	GithubHandleVisibility string `json:"github_handle_visibility"`
+	ZennHandleVisibility   string `json:"zenn_handle_visibility"`
+	LinkedinURLVisibility  string `json:"linkedin_url_visibility"`
+	PortfolioURLVisibility string `json:"portfolio_url_visibility"`
 }
 
 // ageFrom returns the whole-year age at now for someone born on bd.
@@ -88,13 +105,32 @@ func ageFrom(bd, now time.Time) int {
 	return age
 }
 
-// toPublicProfile builds the viewer-facing profile. Account links (X, GitHub,
-// Zenn, LinkedIn, portfolio) are only included when showLinks is true — i.e.
-// the viewer is the owner or an accepted friend; otherwise they are blanked.
-func toPublicProfile(u *models.User, languages []string, viewerID uuid.UUID, now time.Time, showLinks bool) PublicProfile {
+// linkVisible reports whether a link with the given visibility level is shown
+// to a viewer who is the owner (isSelf) and/or an accepted friend (isFriend).
+func linkVisible(level models.Visibility, isSelf, isFriend bool) bool {
+	if isSelf {
+		return true
+	}
+	switch level {
+	case models.VisibilityPublic:
+		return true
+	case models.VisibilityFriends:
+		return isFriend
+	default: // private (and any unknown value) hides the link
+		return false
+	}
+}
+
+// toPublicProfile builds the viewer-facing profile. Each account link (X,
+// GitHub, Zenn, LinkedIn, portfolio) is included only when its own visibility
+// level admits this viewer (always for the owner); otherwise it is blanked.
+// The owner additionally receives the per-link visibility levels so the editor
+// can prefill its selectors.
+func toPublicProfile(u *models.User, languages []string, viewerID uuid.UUID, now time.Time, isFriend bool) PublicProfile {
 	if languages == nil {
 		languages = []string{}
 	}
+	isSelf := u.ID == viewerID
 	p := PublicProfile{
 		ID:              u.ID,
 		Username:        u.Username,
@@ -102,19 +138,34 @@ func toPublicProfile(u *models.User, languages []string, viewerID uuid.UUID, now
 		JobTitle:        u.JobTitle,
 		StatusMessage:   u.StatusMessage,
 		Languages:       languages,
-		LinksVisible:    showLinks,
 		AvatarUpdatedAt: u.AvatarUpdatedAt,
 		CreatedAt:       u.CreatedAt,
 	}
-	if showLinks {
+	if linkVisible(u.XHandleVisibility, isSelf, isFriend) {
 		p.XHandle = u.XHandle
+	}
+	if linkVisible(u.GithubHandleVisibility, isSelf, isFriend) {
 		p.GithubHandle = u.GithubHandle
+	}
+	if linkVisible(u.ZennHandleVisibility, isSelf, isFriend) {
 		p.ZennHandle = u.ZennHandle
+	}
+	if linkVisible(u.LinkedinURLVisibility, isSelf, isFriend) {
 		p.LinkedinURL = u.LinkedinURL
+	}
+	if linkVisible(u.PortfolioURLVisibility, isSelf, isFriend) {
 		p.PortfolioURL = u.PortfolioURL
 	}
+	if isSelf {
+		p.LinkVisibility = &LinkVisibility{
+			XHandle:      u.XHandleVisibility,
+			GithubHandle: u.GithubHandleVisibility,
+			ZennHandle:   u.ZennHandleVisibility,
+			LinkedinURL:  u.LinkedinURLVisibility,
+			PortfolioURL: u.PortfolioURLVisibility,
+		}
+	}
 
-	isSelf := u.ID == viewerID
 	if u.BirthDate != nil {
 		if isSelf || u.ShowAge {
 			a := ageFrom(*u.BirthDate, now)
@@ -253,14 +304,14 @@ func (s *Service) build(ctx context.Context, u *models.User, viewerID uuid.UUID)
 	if err != nil {
 		return nil, httperr.Internal("could not load languages").Wrap(err)
 	}
-	showLinks := u.ID == viewerID
-	if !showLinks {
-		showLinks, err = s.repo.AreFriends(ctx, u.ID, viewerID)
+	isFriend := false
+	if u.ID != viewerID {
+		isFriend, err = s.repo.AreFriends(ctx, u.ID, viewerID)
 		if err != nil {
 			return nil, httperr.Internal("could not check friendship").Wrap(err)
 		}
 	}
-	p := toPublicProfile(u, langs, viewerID, time.Now().UTC(), showLinks)
+	p := toPublicProfile(u, langs, viewerID, time.Now().UTC(), isFriend)
 	return &p, nil
 }
 
@@ -311,18 +362,44 @@ func (s *Service) Update(ctx context.Context, userID uuid.UUID, req UpdateReques
 		return nil, err
 	}
 
+	xVis, err := parseVisibility(req.XHandleVisibility)
+	if err != nil {
+		return nil, err
+	}
+	ghVis, err := parseVisibility(req.GithubHandleVisibility)
+	if err != nil {
+		return nil, err
+	}
+	zennVis, err := parseVisibility(req.ZennHandleVisibility)
+	if err != nil {
+		return nil, err
+	}
+	liVis, err := parseVisibility(req.LinkedinURLVisibility)
+	if err != nil {
+		return nil, err
+	}
+	pfVis, err := parseVisibility(req.PortfolioURLVisibility)
+	if err != nil {
+		return nil, err
+	}
+
 	fields := map[string]any{
-		"display_name":    display,
-		"job_title":       jobTitle,
-		"status_message":  statusMessage,
-		"x_handle":        x,
-		"github_handle":   gh,
-		"zenn_handle":     zenn,
-		"linkedin_url":    linkedin,
-		"portfolio_url":   portfolio,
-		"birth_date":      birthDate, // *time.Time; nil clears the column
-		"show_age":        req.ShowAge,
-		"show_birth_date": req.ShowBirthDate,
+		"display_name":             display,
+		"job_title":                jobTitle,
+		"status_message":           statusMessage,
+		"x_handle":                 x,
+		"github_handle":            gh,
+		"zenn_handle":              zenn,
+		"linkedin_url":             linkedin,
+		"portfolio_url":            portfolio,
+		"birth_date":               birthDate, // *time.Time; nil clears the column
+		"show_age":                 req.ShowAge,
+		"show_birth_date":          req.ShowBirthDate,
+		"x_handle_visibility":      xVis,
+		"github_handle_visibility": ghVis,
+		"zenn_handle_visibility":   zennVis,
+		"linkedin_url_visibility":  liVis,
+		"portfolio_url_visibility": pfVis,
 	}
 	if err := s.repo.UpdateProfile(ctx, userID, fields); err != nil {
 		return nil, httperr.Internal("could not update profile").Wrap(err)
@@ -361,6 +438,20 @@ func parseBirthDate(raw string) (*time.Time, error) {
 
 func stripAt(s string) string {
 	return strings.TrimPrefix(strings.TrimSpace(s), "@")
+}
+
+// parseVisibility validates a per-link visibility level. An empty value
+// defaults to "friends" (the prior friends-only behaviour).
+func parseVisibility(raw string) (models.Visibility, error) {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return models.VisibilityFriends, nil
+	}
+	v := models.Visibility(s)
+	if !v.Valid() {
+		return "", httperr.BadRequest("invalid_profile", "visibility must be public, friends or private")
+	}
+	return v, nil
 }
 
 // normaliseLanguages validates each entry against the canonical language list,

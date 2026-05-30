@@ -10,6 +10,19 @@ export interface SocialProfile {
   portfolio_url: string;
 }
 
+// Who may see an individual account link.
+export type Visibility = "public" | "friends" | "private";
+
+// Per-link visibility levels, keyed by the same field names as SocialProfile's
+// links. Returned only to the owner so the editor can prefill its selectors.
+export interface LinkVisibility {
+  x_handle: Visibility;
+  github_handle: Visibility;
+  zenn_handle: Visibility;
+  linkedin_url: Visibility;
+  portfolio_url: Visibility;
+}
+
 export interface User extends SocialProfile {
   id: string;
   email: string;
@@ -24,9 +37,9 @@ export interface PublicProfile extends SocialProfile {
   username: string;
   display_name: string;
   languages: string[];
-  // True only when the viewer (self or an accepted friend) may see the
-  // account links; otherwise the link fields are blank.
-  links_visible: boolean;
+  // Per-link visibility levels — populated only when viewing your own profile
+  // (for the editor); null otherwise. Links the viewer may not see are blank.
+  link_visibility: LinkVisibility | null;
   avatar_updated_at: string | null;
   created_at: string;
   age: number | null;

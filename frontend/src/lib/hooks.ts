@@ -9,6 +9,7 @@ import type {
   RequestSummary,
   SocialProfile,
   UserSummary,
+  Visibility,
 } from "./types";
 
 // SWR keys are the API paths, so mutations can target them precisely.
@@ -129,6 +130,11 @@ export interface ProfileInput extends SocialProfile {
   birth_date: string; // "YYYY-MM-DD" or "" to clear
   show_age: boolean;
   show_birth_date: boolean;
+  x_handle_visibility: Visibility;
+  github_handle_visibility: Visibility;
+  zenn_handle_visibility: Visibility;
+  linkedin_url_visibility: Visibility;
+  portfolio_url_visibility: Visibility;
 }
 
 /** Updates the caller's own profile and refreshes the graph cache. */
