@@ -23,6 +23,12 @@ type Config struct {
 	// upstream proxy / load balancer.
 	TLSCertFile string
 	TLSKeyFile  string
+
+	// Database connection pool tuning.
+	DBMaxOpenConns    int
+	DBMaxIdleConns    int
+	DBConnMaxLifetime time.Duration
+	DBConnMaxIdleTime time.Duration
 }
 
 // minJWTSecretLen is the minimum acceptable HS256 secret length outside of
@@ -52,6 +58,11 @@ func Load() (*Config, error) {
 		CacheTTL:    envDuration("CACHE_TTL", 5*time.Minute),
 		TLSCertFile: env("TLS_CERT_FILE", ""),
 		TLSKeyFile:  env("TLS_KEY_FILE", ""),
+
+		DBMaxOpenConns:    envInt("DB_MAX_OPEN_CONNS", 25),
+		DBMaxIdleConns:    envInt("DB_MAX_IDLE_CONNS", 5),
+		DBConnMaxLifetime: envDuration("DB_CONN_MAX_LIFETIME", time.Hour),
+		DBConnMaxIdleTime: envDuration("DB_CONN_MAX_IDLE_TIME", 10*time.Minute),
 	}
 
 	isDev := cfg.AppEnv == "development" || cfg.AppEnv == "test"

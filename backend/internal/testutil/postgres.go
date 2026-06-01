@@ -56,7 +56,7 @@ func StartPostgres() (*Postgres, error) {
 	}
 
 	dsn := fmt.Sprintf("postgres://chains:chains@localhost:%d/chains?sslmode=disable", port)
-	db, err := database.Open(dsn, false)
+	db, err := database.Open(dsn, false, database.PoolConfig{})
 	if err != nil {
 		_ = epg.Stop()
 		_ = os.RemoveAll(dir)

@@ -61,7 +61,7 @@ func run() error {
 	defer func() { _ = epg.Stop() }()
 
 	dsn := fmt.Sprintf("postgres://chains:chains@localhost:%d/chains?sslmode=disable", pgPort)
-	db, err := database.Open(dsn, true)
+	db, err := database.Open(dsn, true, database.PoolConfig{})
 	if err != nil {
 		return err
 	}

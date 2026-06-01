@@ -29,7 +29,12 @@ func run() error {
 		return err
 	}
 
-	db, err := database.Open(cfg.DatabaseURL, cfg.AppEnv == "development")
+	db, err := database.Open(cfg.DatabaseURL, cfg.AppEnv == "development", database.PoolConfig{
+		MaxOpenConns:    cfg.DBMaxOpenConns,
+		MaxIdleConns:    cfg.DBMaxIdleConns,
+		ConnMaxLifetime: cfg.DBConnMaxLifetime,
+		ConnMaxIdleTime: cfg.DBConnMaxIdleTime,
+	})
 	if err != nil {
 		return err
 	}
