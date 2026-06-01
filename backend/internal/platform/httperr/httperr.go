@@ -9,6 +9,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/cymed/chains/backend/internal/platform/obs"
 )
 
 // Error is a domain error carrying an HTTP status and a stable machine code.
@@ -92,14 +94,22 @@ func Handler(err error, c echo.Context) {
 			}
 		}
 		req := c.Request()
+		requestID := c.Response().Header().Get(echo.HeaderXRequestID)
 		slog.Error("request failed",
 			"status", status,
 			"code", code,
 			"method", req.Method,
 			"uri", req.RequestURI,
-			"request_id", c.Response().Header().Get(echo.HeaderXRequestID),
+			"request_id", requestID,
 			"error", cause,
 		)
+		// Forward to the error tracker (no-op unless one is installed at start-up).
+		obs.ReportError(req.Context(), cause, map[string]string{
+			"code":       code,
+			"method":     req.Method,
+			"uri":        req.RequestURI,
+			"request_id": requestID,
+		})
 	}
 
 	_ = c.JSON(status, body{Error: responseError{Code: code, Message: msg}})

@@ -2,6 +2,7 @@ package httperr
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -10,7 +11,13 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v4"
+
+	"github.com/cymed/chains/backend/internal/platform/obs"
 )
+
+type recordingReporter struct{ count int }
+
+func (r *recordingReporter) ReportError(context.Context, error, map[string]string) { r.count++ }
 
 func TestHandler_Logs5xxCauseButHidesItFromClient(t *testing.T) {
 	var buf bytes.Buffer
@@ -52,5 +59,26 @@ func TestHandler_DoesNotLog4xx(t *testing.T) {
 
 	if buf.Len() != 0 {
 		t.Fatalf("4xx should not be logged at error level, got: %s", buf.String())
+	}
+}
+
+func TestHandler_Reports5xxToErrorTracker(t *testing.T) {
+	rep := &recordingReporter{}
+	obs.Set(rep)
+
+	e := echo.New()
+
+	// 4xx must not be reported.
+	c4 := e.NewContext(httptest.NewRequest(http.MethodGet, "/api/x", nil), httptest.NewRecorder())
+	Handler(BadRequest("bad", "nope"), c4)
+	if rep.count != 0 {
+		t.Fatalf("4xx should not be reported, count = %d", rep.count)
+	}
+
+	// 5xx must be reported once.
+	c5 := e.NewContext(httptest.NewRequest(http.MethodGet, "/api/x", nil), httptest.NewRecorder())
+	Handler(Internal("boom").Wrap(errors.New("cause")), c5)
+	if rep.count != 1 {
+		t.Fatalf("5xx should be reported once, count = %d", rep.count)
 	}
 }
