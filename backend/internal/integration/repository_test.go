@@ -35,6 +35,34 @@ func TestAuthRepo_DuplicateEmail(t *testing.T) {
 	require.ErrorIs(t, err, gorm.ErrDuplicatedKey)
 }
 
+func TestAuthRepo_DuplicateEmailIsCaseInsensitive(t *testing.T) {
+	db := freshDB(t)
+	repo := auth.NewRepository(db)
+	ctx := context.Background()
+
+	u1 := &models.User{ID: uuid.New(), Email: "case@example.com", Username: "case_one", PasswordHash: "x", DisplayName: "One"}
+	require.NoError(t, repo.Create(ctx, u1))
+
+	// Same email differing only in case must collide via the lower() index,
+	// even though the app normally lowercases before insert.
+	u2 := &models.User{ID: uuid.New(), Email: "Case@Example.com", Username: "case_two", PasswordHash: "x", DisplayName: "Two"}
+	err := repo.Create(ctx, u2)
+	require.ErrorIs(t, err, gorm.ErrDuplicatedKey, "email uniqueness must be case-insensitive")
+}
+
+func TestAuthRepo_DuplicateUsernameIsCaseInsensitive(t *testing.T) {
+	db := freshDB(t)
+	repo := auth.NewRepository(db)
+	ctx := context.Background()
+
+	u1 := &models.User{ID: uuid.New(), Email: "ufirst@example.com", Username: "samehandle", PasswordHash: "x", DisplayName: "One"}
+	require.NoError(t, repo.Create(ctx, u1))
+
+	u2 := &models.User{ID: uuid.New(), Email: "usecond@example.com", Username: "SameHandle", PasswordHash: "x", DisplayName: "Two"}
+	err := repo.Create(ctx, u2)
+	require.ErrorIs(t, err, gorm.ErrDuplicatedKey, "username uniqueness must be case-insensitive")
+}
+
 func TestFriendRepo_SymmetricUniquePreventsReversePair(t *testing.T) {
 	db := freshDB(t)
 	a := insertUser(t, db, "a@example.com", "A")
