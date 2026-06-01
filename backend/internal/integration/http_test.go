@@ -86,6 +86,19 @@ type requestsResp struct {
 	Requests []friend.RequestSummary `json:"requests"`
 }
 
+func TestHTTP_BodyLimitRejectsOversizedRequest(t *testing.T) {
+	e := newTestServer(t)
+
+	// 5 MiB exceeds the 4 MiB global body limit.
+	big := bytes.Repeat([]byte("a"), 5<<20)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", bytes.NewReader(big))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, "body: %s", rec.Body.String())
+}
+
 func TestHTTP_NetworkGraph(t *testing.T) {
 	e := newTestServer(t)
 	alice := register(t, e, "alice@example.com", "Alice")

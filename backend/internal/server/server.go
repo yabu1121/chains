@@ -35,6 +35,10 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 
 	e.Use(emw.Recover())
 	e.Use(emw.RequestID())
+	// Cap every request body so a single client cannot exhaust memory with an
+	// unbounded upload. Set above the avatar upload ceiling (2 MiB) — the
+	// avatar route additionally enforces its own, tighter MaxBytesReader.
+	e.Use(emw.BodyLimit("4M"))
 	e.Use(emw.RequestLoggerWithConfig(emw.RequestLoggerConfig{
 		LogStatus:  true,
 		LogMethod:  true,
