@@ -72,7 +72,7 @@ export default function LoginPage() {
           No account? <Link href="/register">Create one</Link>
         </p>
         <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
-          <Link href="/privacy">Privacy policy</Link>
+          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy policy</Link>
         </p>
       </form>
     </div>
