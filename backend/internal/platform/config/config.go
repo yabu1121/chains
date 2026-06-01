@@ -43,6 +43,12 @@ type Config struct {
 	// race across rolling/horizontally-scaled instances.
 	AutoMigrate bool
 
+	// AvatarStorage selects where avatar image bytes are stored: "postgres"
+	// (default, in the user_avatars table) or "fs" (a local directory standing
+	// in for object storage). AvatarFSDir is the base directory when "fs".
+	AvatarStorage string
+	AvatarFSDir   string
+
 	// RequireRedis makes Redis mandatory: the API fails to start if it cannot
 	// connect, rather than falling back to a per-instance in-memory cache.
 	// Defaults to true outside development, because with more than one instance
@@ -67,19 +73,21 @@ const minJWTSecretLen = 32
 // APP_ENV=development.
 func Load() (*Config, error) {
 	cfg := &Config{
-		AppEnv:       env("APP_ENV", "production"),
-		HTTPAddr:     env("HTTP_ADDR", ":8080"),
-		DatabaseURL:  env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
-		RedisAddr:    env("REDIS_ADDR", "localhost:6379"),
-		RedisDB:      envInt("REDIS_DB", 0),
-		JWTSecret:    env("JWT_SECRET", ""),
-		JWTTTL:       envDuration("JWT_TTL", 15*time.Minute),
-		RefreshTTL:   envDuration("REFRESH_TTL", 30*24*time.Hour),
-		CORSOrigins:  envList("CORS_ORIGINS", []string{"http://localhost:3000"}),
-		CacheTTL:     envDuration("CACHE_TTL", 5*time.Minute),
-		CookieDomain: env("COOKIE_DOMAIN", ""),
-		TLSCertFile:  env("TLS_CERT_FILE", ""),
-		TLSKeyFile:   env("TLS_KEY_FILE", ""),
+		AppEnv:        env("APP_ENV", "production"),
+		HTTPAddr:      env("HTTP_ADDR", ":8080"),
+		DatabaseURL:   env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
+		RedisAddr:     env("REDIS_ADDR", "localhost:6379"),
+		RedisDB:       envInt("REDIS_DB", 0),
+		JWTSecret:     env("JWT_SECRET", ""),
+		JWTTTL:        envDuration("JWT_TTL", 15*time.Minute),
+		RefreshTTL:    envDuration("REFRESH_TTL", 30*24*time.Hour),
+		CORSOrigins:   envList("CORS_ORIGINS", []string{"http://localhost:3000"}),
+		CacheTTL:      envDuration("CACHE_TTL", 5*time.Minute),
+		CookieDomain:  env("COOKIE_DOMAIN", ""),
+		AvatarStorage: env("AVATAR_STORAGE", "postgres"),
+		AvatarFSDir:   env("AVATAR_FS_DIR", ""),
+		TLSCertFile:   env("TLS_CERT_FILE", ""),
+		TLSKeyFile:    env("TLS_KEY_FILE", ""),
 
 		DBMaxOpenConns:    envInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns:    envInt("DB_MAX_IDLE_CONNS", 5),

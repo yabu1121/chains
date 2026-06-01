@@ -19,6 +19,7 @@ import (
 	"github.com/cymed/chains/backend/internal/features/network"
 	"github.com/cymed/chains/backend/internal/features/profile"
 	"github.com/cymed/chains/backend/internal/features/user"
+	"github.com/cymed/chains/backend/internal/platform/blobstore"
 	"github.com/cymed/chains/backend/internal/platform/cache"
 	"github.com/cymed/chains/backend/internal/platform/config"
 	"github.com/cymed/chains/backend/internal/platform/httperr"
@@ -99,7 +100,7 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 
 	networkSvc := network.NewService(network.NewRepository(db), c)
 	profileSvc := profile.NewService(profile.NewRepository(db), c)
-	avatarSvc := avatar.NewService(avatar.NewRepository(db), c)
+	avatarSvc := avatar.NewService(avatarBlobStore(cfg, db), avatar.NewRepository(db), c)
 
 	authHandler := auth.NewHandler(authSvc, auth.CookieConfig{Secure: cfg.CookieSecure, Domain: cfg.CookieDomain})
 	friendHandler := friend.NewHandler(friendSvc)
@@ -134,6 +135,22 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	avatar.RegisterRoutes(api, avatarHandler, authmw)
 
 	return e
+}
+
+// avatarBlobStore selects the avatar storage backend from config. "fs" stands
+// in for object storage locally; anything else (the default) uses Postgres. An
+// unusable fs directory logs a warning and falls back to Postgres rather than
+// failing start-up.
+func avatarBlobStore(cfg *config.Config, db *gorm.DB) blobstore.Store {
+	if cfg.AvatarStorage == "fs" {
+		if fs, err := blobstore.NewFS(cfg.AvatarFSDir); err == nil {
+			return fs
+		} else {
+			slog.Error("avatar fs storage unavailable; falling back to postgres",
+				"dir", cfg.AvatarFSDir, "error", err)
+		}
+	}
+	return blobstore.NewPostgres(db)
 }
 
 // clientIP identifies a caller for rate limiting by their real IP (honouring
