@@ -35,6 +35,13 @@ type Config struct {
 	// migrations are a deliberate, separate step (cmd/migrate) that does not
 	// race across rolling/horizontally-scaled instances.
 	AutoMigrate bool
+
+	// RequireRedis makes Redis mandatory: the API fails to start if it cannot
+	// connect, rather than falling back to a per-instance in-memory cache.
+	// Defaults to true outside development, because with more than one instance
+	// an in-memory cache cannot see cross-instance invalidations and serves
+	// stale data. Set REQUIRE_REDIS=false for a single-instance deployment.
+	RequireRedis bool
 }
 
 // minJWTSecretLen is the minimum acceptable HS256 secret length outside of
@@ -83,6 +90,7 @@ func Load() (*Config, error) {
 	}
 
 	cfg.AutoMigrate = envBool("AUTO_MIGRATE", isDev)
+	cfg.RequireRedis = envBool("REQUIRE_REDIS", !isDev)
 
 	return cfg, nil
 }
