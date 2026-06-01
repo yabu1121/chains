@@ -15,10 +15,10 @@ function TermsEN() {
   return (
     <>
       <h1>Terms of Service</h1>
-      <p className="muted">Last updated: [DATE]</p>
+      <p className="muted">Last updated: 2026-06-02</p>
       <p>
         These Terms govern your use of Chains (the &quot;Service&quot;), operated
-        by [OPERATOR]. By creating an account or using the Service, you agree to
+        by yabu. By creating an account or using the Service, you agree to
         these Terms.
       </p>
 
@@ -26,7 +26,7 @@ function TermsEN() {
       <p>
         You must provide accurate information and keep your credentials secure.
         You are responsible for activity under your account. You must be at least
-        [AGE] years old to use the Service.
+        18 years old to use the Service.
       </p>
 
       <h2>2. Acceptable use</h2>
@@ -40,7 +40,7 @@ function TermsEN() {
       <h2>3. Your content</h2>
       <p>
         You retain ownership of the profile information and images you upload.
-        You grant [OPERATOR] the limited right to host and display that content
+        You grant yabu the limited right to host and display that content
         in order to operate the Service.
       </p>
 
@@ -53,7 +53,7 @@ function TermsEN() {
       <h2>5. Disclaimer &amp; liability</h2>
       <p>
         The Service is provided &quot;as is&quot;, without warranties of any kind.
-        To the extent permitted by law, [OPERATOR] is not liable for indirect or
+        To the extent permitted by law, yabu is not liable for indirect or
         consequential damages arising from your use of the Service.
       </p>
 
@@ -63,11 +63,10 @@ function TermsEN() {
         Service; continued use after changes means you accept them.
       </p>
 
-      <h2>7. Contact &amp; governing law</h2>
+      <h2>7. Contact</h2>
       <p>
-        Questions: <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>. These
-        Terms are governed by the laws of [JURISDICTION]. See also our{" "}
-        <a href="/privacy">Privacy Policy</a>.
+        Questions: <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a>.
+        See also our <a href="/privacy">Privacy Policy</a>.
       </p>
     </>
   );
@@ -77,9 +76,9 @@ function TermsJA() {
   return (
     <>
       <h1>利用規約</h1>
-      <p className="muted">最終更新日: [DATE]</p>
+      <p className="muted">最終更新日: 2026-06-02</p>
       <p>
-        本規約は、[OPERATOR]（以下「当方」）が提供する Chains（以下「本サービス」）の
+        本規約は、yabu（以下「当方」）が提供する Chains（以下「本サービス」）の
         利用条件を定めるものです。アカウントの作成または本サービスの利用をもって、
         本規約に同意したものとみなします。
       </p>
@@ -87,7 +86,7 @@ function TermsJA() {
       <h2>1. アカウント</h2>
       <p>
         正確な情報を登録し、認証情報を安全に管理してください。アカウントでの行為に
-        ついてはユーザーが責任を負います。本サービスの利用には [AGE] 歳以上である
+        ついてはユーザーが責任を負います。本サービスの利用には 18 歳以上である
         必要があります。
       </p>
 
@@ -125,11 +124,10 @@ function TermsJA() {
         後も利用を継続した場合、変更に同意したものとみなします。
       </p>
 
-      <h2>7. お問い合わせ・準拠法</h2>
+      <h2>7. お問い合わせ</h2>
       <p>
-        お問い合わせ: <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>。本規約は
-        [JURISDICTION] の法令に準拠します。あわせて{" "}
-        <a href="/privacy">プライバシーポリシー</a> もご確認ください。
+        お問い合わせ: <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a>。
+        あわせて <a href="/privacy">プライバシーポリシー</a> もご確認ください。
       </p>
     </>
   );

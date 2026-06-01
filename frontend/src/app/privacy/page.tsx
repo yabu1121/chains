@@ -14,11 +14,11 @@ function PrivacyEN() {
   return (
     <>
       <h1>Privacy Policy</h1>
-      <p className="muted">Last updated: [DATE]</p>
+      <p className="muted">Last updated: 2026-06-02</p>
       <p>
         This policy explains what personal data Chains (&quot;we&quot;) collects,
         why, and the rights you have over it. For questions or requests, contact{" "}
-        <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>.
+        <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a>.
       </p>
 
       <h2>Data we collect</h2>
@@ -57,7 +57,7 @@ function PrivacyEN() {
       <h2>Contact</h2>
       <p>
         For privacy requests, contact{" "}
-        <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a>.
+        <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a>.
       </p>
     </>
   );
@@ -67,11 +67,11 @@ function PrivacyJA() {
   return (
     <>
       <h1>プライバシーポリシー</h1>
-      <p className="muted">最終更新日: [DATE]</p>
+      <p className="muted">最終更新日: 2026-06-02</p>
       <p>
         本ポリシーは、Chains（以下「当方」）が収集する個人データ、その目的、および
         ユーザーの権利について説明します。お問い合わせ・ご請求は{" "}
-        <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a> までご連絡ください。
+        <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a> までご連絡ください。
       </p>
 
       <h2>収集するデータ</h2>
@@ -109,7 +109,7 @@ function PrivacyJA() {
       <h2>お問い合わせ</h2>
       <p>
         プライバシーに関するご請求は{" "}
-        <a href="mailto:[CONTACT_EMAIL]">[CONTACT_EMAIL]</a> までご連絡ください。
+        <a href="mailto:hayabusa115346@gmail.com">hayabusa115346@gmail.com</a> までご連絡ください。
       </p>
     </>
   );
