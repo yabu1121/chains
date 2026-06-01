@@ -1,6 +1,7 @@
 // Package avatar stores and serves user profile images. Bytes are kept in the
-// user_avatars table (one row per user) and served via a public GET so plain
-// <img> tags — which cannot send the Authorization header — can load them. The
+// user_avatars table (one row per user). Serving requires authentication: the
+// access token now rides an httpOnly cookie, which <img> tags send
+// automatically, so avatars are no longer exposed to anonymous callers. The
 // matching users.avatar_updated_at column is kept in sync as a presence flag
 // and cache-busting version.
 package avatar
@@ -156,10 +157,10 @@ func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// RegisterRoutes mounts avatar routes. GET is public (image tags cannot send the
-// auth header); mutations require auth.
+// RegisterRoutes mounts avatar routes. All require auth — the access-token
+// cookie is sent by <img> tags automatically, so reads are no longer public.
 func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc) {
-	g.GET("/users/:id/avatar", h.Get)
+	g.GET("/users/:id/avatar", h.Get, authmw)
 	g.PUT("/me/avatar", h.Put, authmw)
 	g.DELETE("/me/avatar", h.Delete, authmw)
 }
@@ -174,8 +175,9 @@ func (h *Handler) Get(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	// The URL is versioned with ?v=avatar_updated_at, so it is safe to cache.
-	c.Response().Header().Set("Cache-Control", "public, max-age=3600")
+	// Versioned via ?v=avatar_updated_at, but now auth-gated, so cache only in
+	// the user's private browser cache (not shared/CDN caches).
+	c.Response().Header().Set("Cache-Control", "private, max-age=3600")
 	return c.Blob(http.StatusOK, a.ContentType, a.Data)
 }
 

@@ -226,6 +226,21 @@ func TestHTTP_ReadinessProbe(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"cache\":\"ok\"")
 }
 
+func TestHTTP_AvatarRequiresAuth(t *testing.T) {
+	e := newTestServer(t)
+	alice := register(t, e, "avatar_user@example.com", "Av")
+	aliceID := decode[auth.UserResponse](t, alice.do(http.MethodGet, "/api/me", nil)).ID.String()
+
+	// Unauthenticated GET must be rejected (no longer a public endpoint).
+	anon := httptest.NewRecorder()
+	e.ServeHTTP(anon, httptest.NewRequest(http.MethodGet, "/api/users/"+aliceID+"/avatar", nil))
+	require.Equal(t, http.StatusUnauthorized, anon.Code)
+
+	// Authenticated GET reaches the handler (404 here: no avatar uploaded).
+	authed := alice.do(http.MethodGet, "/api/users/"+aliceID+"/avatar", nil)
+	require.NotEqual(t, http.StatusUnauthorized, authed.Code, "authenticated avatar GET must not 401")
+}
+
 func TestHTTP_SecurityHeadersPresent(t *testing.T) {
 	e := newTestServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
