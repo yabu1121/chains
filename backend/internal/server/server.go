@@ -3,6 +3,7 @@
 package server
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"time"
@@ -91,7 +92,12 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	profileHandler := profile.NewHandler(profileSvc)
 	avatarHandler := avatar.NewHandler(avatarSvc)
 
+	// Liveness: the process is up and serving. Never touches dependencies, so
+	// a slow/unreachable DB or Redis does not get the pod killed.
 	e.GET("/health", health)
+	e.GET("/livez", health)
+	// Readiness: only route traffic here once dependencies are reachable.
+	e.GET("/readyz", readiness(db, c))
 
 	api := e.Group("/api")
 	api.GET("/health", health)
@@ -107,4 +113,39 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 
 func health(c echo.Context) error {
 	return c.JSON(http.StatusOK, echo.Map{"status": "ok", "time": time.Now().UTC()})
+}
+
+// readiness pings the database and cache so an orchestrator only sends traffic
+// once both are reachable. Returns 503 with a per-dependency breakdown when any
+// check fails.
+func readiness(db *gorm.DB, c cache.Cache) echo.HandlerFunc {
+	return func(ctx echo.Context) error {
+		rctx, cancel := context.WithTimeout(ctx.Request().Context(), 2*time.Second)
+		defer cancel()
+
+		checks := map[string]string{}
+		ready := true
+
+		if sqlDB, err := db.DB(); err != nil || sqlDB.PingContext(rctx) != nil {
+			checks["database"] = "down"
+			ready = false
+		} else {
+			checks["database"] = "ok"
+		}
+
+		if err := c.Ping(rctx); err != nil {
+			checks["cache"] = "down"
+			ready = false
+		} else {
+			checks["cache"] = "ok"
+		}
+
+		status := http.StatusOK
+		state := "ready"
+		if !ready {
+			status = http.StatusServiceUnavailable
+			state = "not_ready"
+		}
+		return ctx.JSON(status, echo.Map{"status": state, "checks": checks})
+	}
 }

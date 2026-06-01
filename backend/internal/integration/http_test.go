@@ -99,6 +99,24 @@ func TestHTTP_BodyLimitRejectsOversizedRequest(t *testing.T) {
 	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, "body: %s", rec.Body.String())
 }
 
+func TestHTTP_ReadinessProbe(t *testing.T) {
+	e := newTestServer(t)
+
+	// Liveness never touches dependencies.
+	req := httptest.NewRequest(http.MethodGet, "/livez", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// Readiness pings DB + cache, both up in the test harness.
+	req = httptest.NewRequest(http.MethodGet, "/readyz", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	require.Contains(t, rec.Body.String(), "\"database\":\"ok\"")
+	require.Contains(t, rec.Body.String(), "\"cache\":\"ok\"")
+}
+
 func TestHTTP_SecurityHeadersPresent(t *testing.T) {
 	e := newTestServer(t)
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
