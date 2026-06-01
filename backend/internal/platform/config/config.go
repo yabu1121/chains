@@ -22,8 +22,12 @@ type Config struct {
 	// Auth cookie behaviour. CookieSecure marks the httpOnly auth cookies
 	// Secure (HTTPS-only); defaults to true outside development. CookieDomain
 	// optionally scopes them to a parent domain shared by the API and site.
-	CookieSecure bool
-	CookieDomain string
+	// CookieSameSite is "lax" (default) when the site and API share a
+	// registrable domain, or "none" for cross-site setups (e.g. separate
+	// *.run.app hosts); "none" forces Secure.
+	CookieSecure   bool
+	CookieDomain   string
+	CookieSameSite string
 
 	// TLS termination. When both are set the server listens with TLS directly;
 	// otherwise it serves plain HTTP and TLS is expected to be terminated at an
@@ -73,21 +77,22 @@ const minJWTSecretLen = 32
 // APP_ENV=development.
 func Load() (*Config, error) {
 	cfg := &Config{
-		AppEnv:        env("APP_ENV", "production"),
-		HTTPAddr:      env("HTTP_ADDR", ":8080"),
-		DatabaseURL:   env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
-		RedisAddr:     env("REDIS_ADDR", "localhost:6379"),
-		RedisDB:       envInt("REDIS_DB", 0),
-		JWTSecret:     env("JWT_SECRET", ""),
-		JWTTTL:        envDuration("JWT_TTL", 15*time.Minute),
-		RefreshTTL:    envDuration("REFRESH_TTL", 30*24*time.Hour),
-		CORSOrigins:   envList("CORS_ORIGINS", []string{"http://localhost:3000"}),
-		CacheTTL:      envDuration("CACHE_TTL", 5*time.Minute),
-		CookieDomain:  env("COOKIE_DOMAIN", ""),
-		AvatarStorage: env("AVATAR_STORAGE", "postgres"),
-		AvatarFSDir:   env("AVATAR_FS_DIR", ""),
-		TLSCertFile:   env("TLS_CERT_FILE", ""),
-		TLSKeyFile:    env("TLS_KEY_FILE", ""),
+		AppEnv:         env("APP_ENV", "production"),
+		HTTPAddr:       env("HTTP_ADDR", ":8080"),
+		DatabaseURL:    env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
+		RedisAddr:      env("REDIS_ADDR", "localhost:6379"),
+		RedisDB:        envInt("REDIS_DB", 0),
+		JWTSecret:      env("JWT_SECRET", ""),
+		JWTTTL:         envDuration("JWT_TTL", 15*time.Minute),
+		RefreshTTL:     envDuration("REFRESH_TTL", 30*24*time.Hour),
+		CORSOrigins:    envList("CORS_ORIGINS", []string{"http://localhost:3000"}),
+		CacheTTL:       envDuration("CACHE_TTL", 5*time.Minute),
+		CookieDomain:   env("COOKIE_DOMAIN", ""),
+		CookieSameSite: env("COOKIE_SAMESITE", "lax"),
+		AvatarStorage:  env("AVATAR_STORAGE", "postgres"),
+		AvatarFSDir:    env("AVATAR_FS_DIR", ""),
+		TLSCertFile:    env("TLS_CERT_FILE", ""),
+		TLSKeyFile:     env("TLS_KEY_FILE", ""),
 
 		DBMaxOpenConns:    envInt("DB_MAX_OPEN_CONNS", 25),
 		DBMaxIdleConns:    envInt("DB_MAX_IDLE_CONNS", 5),
