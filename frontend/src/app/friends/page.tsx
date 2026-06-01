@@ -13,6 +13,8 @@ import { QRInvite } from "@/components/QRInvite";
 import { NetworkGraph } from "@/components/NetworkGraph";
 import { ProfileEditor } from "@/components/ProfileEditor";
 import { ProfileModal } from "@/components/ProfileModal";
+import { LegalDoc } from "@/components/LegalDoc";
+import { PrivacyEN, PrivacyJA, TermsEN, TermsJA } from "@/components/legal";
 import { useAuth } from "@/lib/auth";
 import {
   acceptRequest,
@@ -27,13 +29,13 @@ import {
 
 // Top-level navigation. Friends/Requests/Find are nested inside the Friends
 // area (see FriendsArea), so the sidebar only carries these three.
-type Tab = "friends" | "network" | "news" | "profile";
+type Tab = "friends" | "network" | "news" | "settings";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "friends", label: "Friends" },
   { key: "network", label: "Network" },
   { key: "news", label: "News" },
-  { key: "profile", label: "Profile" },
+  { key: "settings", label: "Settings" },
 ];
 
 // Sub-tabs within the Friends area.
@@ -43,6 +45,15 @@ const FRIENDS_TABS: { key: FriendsSub; label: string }[] = [
   { key: "friends", label: "Friends" },
   { key: "requests", label: "Requests" },
   { key: "find", label: "Find" },
+];
+
+// Sub-tabs within the Settings area.
+type SettingsSub = "profile" | "privacy" | "terms";
+
+const SETTINGS_TABS: { key: SettingsSub; label: string }[] = [
+  { key: "profile", label: "Profile" },
+  { key: "privacy", label: "Privacy" },
+  { key: "terms", label: "Terms" },
 ];
 
 export default function FriendsPage() {
@@ -153,7 +164,7 @@ function Dashboard() {
             >
               {tab === "friends" ? <FriendsArea /> : null}
               {tab === "network" ? (
-                <NetworkGraph onEditProfile={() => changeTab("profile")} />
+                <NetworkGraph onEditProfile={() => changeTab("settings")} />
               ) : null}
               {tab === "news" ? (
                 <div
@@ -164,7 +175,7 @@ function Dashboard() {
                   <p className="muted">Coming soon</p>
                 </div>
               ) : null}
-              {tab === "profile" ? <ProfileEditor /> : null}
+              {tab === "settings" ? <SettingsArea /> : null}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -183,7 +194,7 @@ function Dashboard() {
         <ProfileModal
           userId={user.id}
           onClose={() => setShowOwnProfile(false)}
-          onEditProfile={() => changeTab("profile")}
+          onEditProfile={() => changeTab("settings")}
         />
       ) : null}
     </div>
@@ -247,6 +258,68 @@ function FriendsArea() {
               <QRInvite />
               <FindPeople />
             </>
+          ) : null}
+        </motion.div>
+      </AnimatePresence>
+    </>
+  );
+}
+
+// SettingsArea groups account settings behind a sub-tab strip: the profile
+// editor plus the in-app Privacy Policy and Terms of Service.
+function SettingsArea() {
+  const [sub, setSub] = useState<SettingsSub>("profile");
+  const [dir, setDir] = useState(0);
+  const reduce = prefersReducedMotion();
+  const dist = reduce ? 0 : 24;
+
+  const changeSub = (next: SettingsSub) => {
+    const idx = (s: SettingsSub) => SETTINGS_TABS.findIndex((x) => x.key === s);
+    setDir(idx(next) >= idx(sub) ? 1 : -1);
+    setSub(next);
+  };
+
+  return (
+    <>
+      <div className="subtabs" role="tablist">
+        {SETTINGS_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={sub === key}
+            className={`subtab${sub === key ? " active" : ""}`}
+            onClick={() => changeSub(key)}
+          >
+            {sub === key ? (
+              <motion.span
+                className="subtab-pill"
+                layoutId="settings-subtab-pill"
+                transition={{ type: "spring", stiffness: 480, damping: 38 }}
+              />
+            ) : null}
+            <span className="subtab-label">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div
+          key={sub}
+          initial={{ opacity: 0, x: dir >= 0 ? dist : -dist }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
+          transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {sub === "profile" ? <ProfileEditor /> : null}
+          {sub === "privacy" ? (
+            <div className="card">
+              <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
+            </div>
+          ) : null}
+          {sub === "terms" ? (
+            <div className="card">
+              <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
+            </div>
           ) : null}
         </motion.div>
       </AnimatePresence>
