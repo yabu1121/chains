@@ -10,6 +10,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* is inlined into the client bundle at build time, so the
+# production API URL must be supplied here (e.g.
+# --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com).
+ARG NEXT_PUBLIC_API_BASE_URL
+ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
 # Produces .next/standalone (output: "standalone" in next.config.mjs).
 RUN npm run build
 

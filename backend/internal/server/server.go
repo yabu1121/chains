@@ -6,6 +6,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -102,7 +103,11 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	profileSvc := profile.NewService(profile.NewRepository(db), c)
 	avatarSvc := avatar.NewService(avatarBlobStore(cfg, db), avatar.NewRepository(db), c)
 
-	authHandler := auth.NewHandler(authSvc, auth.CookieConfig{Secure: cfg.CookieSecure, Domain: cfg.CookieDomain})
+	authHandler := auth.NewHandler(authSvc, auth.CookieConfig{
+		Secure:   cfg.CookieSecure,
+		Domain:   cfg.CookieDomain,
+		SameSite: parseSameSite(cfg.CookieSameSite),
+	})
 	friendHandler := friend.NewHandler(friendSvc)
 	userHandler := user.NewHandler(user.NewRepository(db))
 	networkHandler := network.NewHandler(networkSvc)
@@ -135,6 +140,18 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	avatar.RegisterRoutes(api, avatarHandler, authmw)
 
 	return e
+}
+
+// parseSameSite maps the configured string to http.SameSite (default Lax).
+func parseSameSite(s string) http.SameSite {
+	switch strings.ToLower(s) {
+	case "none":
+		return http.SameSiteNoneMode
+	case "strict":
+		return http.SameSiteStrictMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
 
 // avatarBlobStore selects the avatar storage backend from config. "fs" stands

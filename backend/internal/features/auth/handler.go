@@ -18,11 +18,14 @@ const (
 )
 
 // CookieConfig controls how auth cookies are emitted. Secure should be true in
-// production (HTTPS); SameSite=Lax plus a restricted CORS origin is the CSRF
-// defence.
+// production (HTTPS). SameSite is Lax when the site and API share a registrable
+// domain (with a restricted CORS origin as the CSRF defence), or None for
+// cross-site hosting (e.g. separate *.run.app hosts) — which the browser only
+// honours together with Secure.
 type CookieConfig struct {
-	Secure bool
-	Domain string
+	Secure   bool
+	Domain   string
+	SameSite http.SameSite
 }
 
 // Handler exposes the auth HTTP endpoints.
@@ -160,9 +163,17 @@ func (h *Handler) clearAuthCookies(c echo.Context) {
 	c.SetCookie(h.newCookie(refreshCookieName, "", refreshCookiePath, past))
 }
 
-// newCookie builds an httpOnly, SameSite=Lax cookie. An expiry in the past
-// deletes it.
+// newCookie builds an httpOnly auth cookie. An expiry in the past deletes it.
 func (h *Handler) newCookie(name, value, path string, expires time.Time) *http.Cookie {
+	sameSite := h.cookie.SameSite
+	if sameSite == 0 {
+		sameSite = http.SameSiteLaxMode
+	}
+	secure := h.cookie.Secure
+	// Browsers reject SameSite=None cookies that are not also Secure.
+	if sameSite == http.SameSiteNoneMode {
+		secure = true
+	}
 	return &http.Cookie{
 		Name:     name,
 		Value:    value,
@@ -170,8 +181,8 @@ func (h *Handler) newCookie(name, value, path string, expires time.Time) *http.C
 		Domain:   h.cookie.Domain,
 		Expires:  expires,
 		HttpOnly: true,
-		Secure:   h.cookie.Secure,
-		SameSite: http.SameSiteLaxMode,
+		Secure:   secure,
+		SameSite: sameSite,
 	}
 }
 
