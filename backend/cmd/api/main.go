@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -49,6 +50,11 @@ func run() error {
 
 	var c cache.Cache
 	if rc, err := cache.NewRedis(cfg.RedisAddr, cfg.RedisDB); err != nil {
+		if cfg.RequireRedis {
+			// Falling back to a per-instance memory cache here would silently
+			// break cross-instance invalidation once scaled out.
+			return fmt.Errorf("redis required but unavailable at %s: %w", cfg.RedisAddr, err)
+		}
 		log.Printf("warning: redis unavailable (%v); using in-memory cache", err)
 		c = cache.NewMemory()
 	} else {
