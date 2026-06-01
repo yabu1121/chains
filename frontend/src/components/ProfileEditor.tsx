@@ -329,7 +329,7 @@ export function ProfileEditor() {
         </label>
       </div>
 
-      <label>Languages (programming languages you've worked with)</label>
+      <label>Languages (programming languages you&apos;ve worked with)</label>
       <Select
         fullWidth
         // Always shows the placeholder: picking a language adds it and resets.

@@ -58,7 +58,6 @@ export function useReveal<T extends HTMLElement>(opts: RevealOptions = {}) {
     return () => {
       anim.revert();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return ref;
 }
@@ -104,7 +103,6 @@ export function useStagger<T extends HTMLElement>(
     return () => {
       anim.revert();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
   return ref;
 }
