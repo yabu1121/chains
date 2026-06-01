@@ -45,6 +45,7 @@ func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc, crede
 	g.POST("/auth/refresh", h.Refresh, credentialMW...)
 	g.POST("/auth/logout", h.Logout, authmw)
 	g.GET("/me", h.Me, authmw)
+	g.DELETE("/me", h.DeleteAccount, authmw)
 }
 
 // Register handles POST /auth/register.
@@ -98,6 +99,29 @@ func (h *Handler) Logout(c echo.Context) error {
 	jti, exp := middleware.AccessToken(c)
 	refresh := readCookie(c, refreshCookieName)
 	if err := h.svc.Logout(c.Request().Context(), refresh, jti, exp); err != nil {
+		return err
+	}
+	h.clearAuthCookies(c)
+	return c.NoContent(http.StatusNoContent)
+}
+
+// DeleteAccount handles DELETE /me: permanently erases the caller's account
+// after re-confirming their password, then clears the auth cookies.
+func (h *Handler) DeleteAccount(c echo.Context) error {
+	userID, err := middleware.MustUserID(c)
+	if err != nil {
+		return err
+	}
+	var req DeleteAccountRequest
+	if err := c.Bind(&req); err != nil {
+		return httperr.BadRequest("invalid_body", "request body is not valid JSON")
+	}
+	if err := c.Validate(&req); err != nil {
+		return err
+	}
+	jti, exp := middleware.AccessToken(c)
+	refresh := readCookie(c, refreshCookieName)
+	if err := h.svc.DeleteAccount(c.Request().Context(), userID, req.Password, refresh, jti, exp); err != nil {
 		return err
 	}
 	h.clearAuthCookies(c)

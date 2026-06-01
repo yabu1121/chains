@@ -37,6 +37,7 @@ type userStore interface {
 	ExistsByUsername(ctx context.Context, username string) (bool, error)
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	DeleteByID(ctx context.Context, id uuid.UUID) error
 }
 
 // Service implements registration, login and profile lookup.
@@ -163,6 +164,30 @@ func (s *Service) Logout(ctx context.Context, refreshToken, accessJTI string, ac
 			return httperr.Internal("could not revoke access token").Wrap(err)
 		}
 	}
+	return nil
+}
+
+// DeleteAccount permanently erases the caller's account after re-confirming
+// their password. Related rows (friendships, blocks, languages, avatar) are
+// removed by ON DELETE CASCADE. The presented refresh token and current access
+// token are revoked so the now-deleted session cannot continue. Cached views
+// (network graph, friends) converge within their short TTLs.
+func (s *Service) DeleteAccount(ctx context.Context, userID uuid.UUID, password, refreshToken, accessJTI string, accessExp time.Time) error {
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return httperr.NotFound("user_not_found", "user not found")
+		}
+		return httperr.Internal("could not load user").Wrap(err)
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+		return httperr.Forbidden("invalid_password", "password is incorrect")
+	}
+	if err := s.users.DeleteByID(ctx, userID); err != nil {
+		return httperr.Internal("could not delete account").Wrap(err)
+	}
+	// Best-effort session teardown; the account is already gone.
+	_ = s.Logout(ctx, refreshToken, accessJTI, accessExp)
 	return nil
 }
 

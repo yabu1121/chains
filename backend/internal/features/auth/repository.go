@@ -57,3 +57,10 @@ func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*models.User, 
 	}
 	return &u, nil
 }
+
+// DeleteByID removes a user row. The users foreign keys are declared
+// ON DELETE CASCADE, so this also erases the user's friendships, blocks,
+// languages and avatar — a full GDPR-style data deletion in one statement.
+func (r *Repository) DeleteByID(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Delete(&models.User{}, "id = ?", id).Error
+}

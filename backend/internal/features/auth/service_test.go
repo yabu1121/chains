@@ -73,6 +73,17 @@ func (f *fakeUserStore) FindByID(_ context.Context, id uuid.UUID) (*models.User,
 	return u, nil
 }
 
+func (f *fakeUserStore) DeleteByID(_ context.Context, id uuid.UUID) error {
+	u, ok := f.byID[id]
+	if !ok {
+		return gorm.ErrRecordNotFound
+	}
+	delete(f.byID, id)
+	delete(f.byEmail, u.Email)
+	delete(f.byUsername, u.Username)
+	return nil
+}
+
 func newTestService(store userStore) *Service {
 	tokens := NewTokenStore(cache.NewMemory(), time.Hour)
 	return NewService(store, jwt.NewManager("test-secret", time.Hour), tokens, bcrypt.MinCost)
