@@ -117,6 +117,15 @@ export async function uploadAvatar(
   return parse(res);
 }
 
+/** Permanently deletes the caller's account after re-confirming the password. */
+export async function deleteAccount(password: string): Promise<void> {
+  await apiFetch<void>("/api/me", {
+    method: "DELETE",
+    refreshOn401: false,
+    body: { password },
+  });
+}
+
 /** Removes the caller's avatar. */
 export async function deleteAvatar(): Promise<void> {
   const res = await fetch(`${BASE_URL}/api/me/avatar`, {

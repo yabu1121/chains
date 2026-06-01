@@ -226,6 +226,50 @@ func TestHTTP_ReadinessProbe(t *testing.T) {
 	require.Contains(t, rec.Body.String(), "\"cache\":\"ok\"")
 }
 
+func TestHTTP_DeleteAccount(t *testing.T) {
+	e := newTestServer(t)
+
+	// Register and capture the session cookies.
+	rec := httptest.NewRecorder()
+	body := strings.NewReader(`{"email":"gone@example.com","username":"goneuser","password":"supersecret","display_name":"Gone"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	access := cookieValue(rec, "access_token")
+	refresh := cookieValue(rec, "refresh_token")
+
+	del := func(password string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(http.MethodDelete, "/api/me", strings.NewReader(`{"password":"`+password+`"}`))
+		r.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		r.AddCookie(&http.Cookie{Name: "access_token", Value: access})
+		r.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh})
+		w := httptest.NewRecorder()
+		e.ServeHTTP(w, r)
+		return w
+	}
+
+	// Wrong password must not delete.
+	require.Equal(t, http.StatusForbidden, del("wrongpass").Code)
+
+	// Correct password erases the account.
+	require.Equal(t, http.StatusNoContent, del("supersecret").Code)
+
+	// The account is gone: login fails.
+	loginRec := httptest.NewRecorder()
+	loginReq := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"gone@example.com","password":"supersecret"}`))
+	loginReq.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	e.ServeHTTP(loginRec, loginReq)
+	require.Equal(t, http.StatusUnauthorized, loginRec.Code)
+
+	// The old access token no longer works (revoked on delete).
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(&http.Cookie{Name: "access_token", Value: access})
+	meRec := httptest.NewRecorder()
+	e.ServeHTTP(meRec, meReq)
+	require.Equal(t, http.StatusUnauthorized, meRec.Code)
+}
+
 func TestHTTP_AvatarRequiresAuth(t *testing.T) {
 	e := newTestServer(t)
 	alice := register(t, e, "avatar_user@example.com", "Av")

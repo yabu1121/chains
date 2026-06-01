@@ -18,6 +18,12 @@ type RegisterRequest struct {
 	DisplayName string `json:"display_name" validate:"required,min=1,max=50"`
 }
 
+// DeleteAccountRequest re-confirms the caller's password before erasing their
+// account (a destructive, irreversible action).
+type DeleteAccountRequest struct {
+	Password string `json:"password" validate:"required"`
+}
+
 // LoginRequest is the body for obtaining a token.
 type LoginRequest struct {
 	Email    string `json:"email" validate:"required,email,max=254"`

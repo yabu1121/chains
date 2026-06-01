@@ -7,9 +7,10 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { useAuth } from "@/lib/auth";
-import { ApiError, deleteAvatar, uploadAvatar } from "@/lib/api";
+import { ApiError, deleteAccount, deleteAvatar, uploadAvatar } from "@/lib/api";
 import { getProfile, updateProfile, type ProfileInput } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { useReveal } from "@/lib/anim";
@@ -70,7 +71,8 @@ const EMPTY: ProfileInput = {
 };
 
 export function ProfileEditor() {
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
+  const router = useRouter();
   const { data: profile, mutate } = useSWR<PublicProfile>(
     user ? `/api/users/${user.id}` : null,
     () => getProfile(user!.id),
@@ -79,6 +81,27 @@ export function ProfileEditor() {
   const [form, setForm] = useState<ProfileInput>(EMPTY);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  // Account deletion (danger zone).
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function onDeleteAccount() {
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await deleteAccount(deletePassword);
+      await logout(); // clears local session; cookies already cleared server-side
+      router.push("/login");
+    } catch (err) {
+      setDeleteError(
+        err instanceof ApiError ? err.message : "Could not delete account.",
+      );
+      setDeleting(false);
+    }
+  }
 
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useReveal<HTMLFormElement>();
@@ -209,6 +232,7 @@ export function ProfileEditor() {
   }
 
   return (
+    <>
     <form className="card" onSubmit={onSubmit} ref={formRef}>
       <h2 className="section-title">Your profile</h2>
 
@@ -419,5 +443,55 @@ export function ProfileEditor() {
       </div>
       {error ? <p className="error">{error}</p> : null}
     </form>
+
+    <section className="card" style={{ marginTop: 18, borderColor: "var(--danger, #d9534f)" }}>
+      <h3 style={{ marginTop: 0 }}>Delete account</h3>
+      <p className="muted">
+        Permanently delete your account and all associated data (profile,
+        friendships, requests and avatar). This cannot be undone.
+      </p>
+      {!confirmingDelete ? (
+        <button type="button" className="ghost" onClick={() => setConfirmingDelete(true)}>
+          Delete my account
+        </button>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 360 }}>
+          <label>
+            Confirm your password
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+            />
+          </label>
+          {deleteError ? <p className="error">{deleteError}</p> : null}
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              className="primary"
+              style={{ width: "auto", background: "var(--danger, #d9534f)" }}
+              disabled={deleting || deletePassword.length === 0}
+              onClick={onDeleteAccount}
+            >
+              {deleting ? "Deleting…" : "Permanently delete"}
+            </button>
+            <button
+              type="button"
+              className="ghost"
+              disabled={deleting}
+              onClick={() => {
+                setConfirmingDelete(false);
+                setDeletePassword("");
+                setDeleteError(null);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+    </>
   );
 }
