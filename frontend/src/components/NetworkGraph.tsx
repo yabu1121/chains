@@ -19,7 +19,7 @@ import { Select } from "./Select";
 // Its prop generics don't survive next/dynamic cleanly, hence the cast.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
-  ssr: true,
+  ssr: false,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 }) as any;
 
