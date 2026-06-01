@@ -99,6 +99,25 @@ func TestHTTP_BodyLimitRejectsOversizedRequest(t *testing.T) {
 	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, "body: %s", rec.Body.String())
 }
 
+func TestHTTP_CredentialEndpointsAreRateLimited(t *testing.T) {
+	e := newTestServer(t)
+
+	// Hammer login from one IP; the credential limiter (burst 10) must start
+	// returning 429 well before 30 requests.
+	got429 := false
+	for range 30 {
+		req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"email":"x@example.com","password":"whatever"}`))
+		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		if rec.Code == http.StatusTooManyRequests {
+			got429 = true
+			break
+		}
+	}
+	require.True(t, got429, "expected the credential endpoint to rate-limit a burst of requests")
+}
+
 func TestHTTP_ReadinessProbe(t *testing.T) {
 	e := newTestServer(t)
 

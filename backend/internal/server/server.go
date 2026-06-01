@@ -54,6 +54,13 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 		secure.HSTSPreloadEnabled = true
 	}
 	e.Use(emw.SecureWithConfig(secure))
+	// A lenient global per-IP rate limit as a coarse abuse backstop.
+	e.Use(emw.RateLimiterWithConfig(emw.RateLimiterConfig{
+		Store: emw.NewRateLimiterMemoryStoreWithConfig(emw.RateLimiterMemoryStoreConfig{
+			Rate: 50, Burst: 100, ExpiresIn: 3 * time.Minute,
+		}),
+		IdentifierExtractor: clientIP,
+	}))
 	e.Use(emw.RequestLoggerWithConfig(emw.RequestLoggerConfig{
 		LogStatus:  true,
 		LogMethod:  true,
@@ -101,7 +108,16 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 
 	api := e.Group("/api")
 	api.GET("/health", health)
-	auth.RegisterRoutes(api, authHandler, authmw)
+	// Stricter per-IP limit on the unauthenticated credential endpoints to
+	// blunt password brute-forcing / account enumeration. ~0.2 req/s sustained
+	// with a burst of 10.
+	credentialLimiter := emw.RateLimiterWithConfig(emw.RateLimiterConfig{
+		Store: emw.NewRateLimiterMemoryStoreWithConfig(emw.RateLimiterMemoryStoreConfig{
+			Rate: 0.2, Burst: 10, ExpiresIn: 5 * time.Minute,
+		}),
+		IdentifierExtractor: clientIP,
+	})
+	auth.RegisterRoutes(api, authHandler, authmw, credentialLimiter)
 	friend.RegisterRoutes(api, friendHandler, authmw)
 	user.RegisterRoutes(api, userHandler, authmw)
 	network.RegisterRoutes(api, networkHandler, authmw)
@@ -109,6 +125,12 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	avatar.RegisterRoutes(api, avatarHandler, authmw)
 
 	return e
+}
+
+// clientIP identifies a caller for rate limiting by their real IP (honouring
+// X-Forwarded-For / X-Real-IP via Echo's trusted-proxy handling).
+func clientIP(c echo.Context) (string, error) {
+	return c.RealIP(), nil
 }
 
 func health(c echo.Context) error {
