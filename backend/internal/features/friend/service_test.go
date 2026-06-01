@@ -67,11 +67,14 @@ func (f *fakeStore) CreateFriendship(_ context.Context, fr *models.Friendship) e
 	return nil
 }
 
-func (f *fakeStore) AcceptFriendship(_ context.Context, id uuid.UUID, at time.Time) error {
+func (f *fakeStore) AcceptFriendship(_ context.Context, id, addresseeID uuid.UUID, at time.Time) (int64, error) {
 	fr := f.friendships[id]
+	if fr == nil || fr.AddresseeID != addresseeID || fr.Status != models.FriendshipPending {
+		return 0, nil
+	}
 	fr.Status = models.FriendshipAccepted
 	fr.AcceptedAt = &at
-	return nil
+	return 1, nil
 }
 
 func (f *fakeStore) DeleteFriendship(_ context.Context, id uuid.UUID) error {

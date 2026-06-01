@@ -65,16 +65,20 @@ func (r *Repository) CreateFriendship(ctx context.Context, f *models.Friendship)
 	return r.db.WithContext(ctx).Create(f).Error
 }
 
-// AcceptFriendship marks a pending row accepted.
-func (r *Repository) AcceptFriendship(ctx context.Context, id uuid.UUID, at time.Time) error {
-	return r.db.WithContext(ctx).
+// AcceptFriendship marks a pending row accepted, but only if it is still
+// pending and addressed to addresseeID — a compare-and-set that prevents a
+// concurrent accept/reject from racing. Returns the number of rows changed so
+// the caller can tell a no-op (0) from a successful accept (1).
+func (r *Repository) AcceptFriendship(ctx context.Context, id, addresseeID uuid.UUID, at time.Time) (int64, error) {
+	res := r.db.WithContext(ctx).
 		Model(&models.Friendship{}).
-		Where("id = ?", id).
+		Where("id = ? AND addressee_id = ? AND status = ?", id, addresseeID, models.FriendshipPending).
 		Updates(map[string]any{
 			"status":      models.FriendshipAccepted,
 			"accepted_at": at,
 			"updated_at":  at,
-		}).Error
+		})
+	return res.RowsAffected, res.Error
 }
 
 // DeleteFriendship removes a friendship row by ID.
