@@ -78,6 +78,96 @@ func register(t *testing.T, e *echo.Echo, email, name string) *apiClient {
 	return c
 }
 
+// cookieValue returns the value of the named Set-Cookie on a response, or "".
+func cookieValue(rec *httptest.ResponseRecorder, name string) string {
+	for _, ck := range rec.Result().Cookies() {
+		if ck.Name == name {
+			return ck.Value
+		}
+	}
+	return ""
+}
+
+func TestHTTP_AuthTokenLifecycle(t *testing.T) {
+	e := newTestServer(t)
+
+	// Register: response must set httpOnly access + refresh cookies.
+	rec := httptest.NewRecorder()
+	body := strings.NewReader(`{"email":"life@example.com","username":"life","password":"supersecret","display_name":"Life"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	var access, refresh string
+	for _, ck := range rec.Result().Cookies() {
+		switch ck.Name {
+		case "access_token":
+			access = ck.Value
+			require.True(t, ck.HttpOnly, "access cookie must be httpOnly")
+		case "refresh_token":
+			refresh = ck.Value
+			require.True(t, ck.HttpOnly, "refresh cookie must be httpOnly")
+			require.Equal(t, "/api/auth", ck.Path, "refresh cookie should be path-scoped")
+		}
+	}
+	require.NotEmpty(t, access, "access_token cookie must be set")
+	require.NotEmpty(t, refresh, "refresh_token cookie must be set")
+
+	// The access cookie authenticates /me.
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(&http.Cookie{Name: "access_token", Value: access})
+	meRec := httptest.NewRecorder()
+	e.ServeHTTP(meRec, meReq)
+	require.Equal(t, http.StatusOK, meRec.Code)
+
+	// Refresh rotates: new tokens issued, old refresh token no longer valid.
+	refReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	refReq.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh})
+	refRec := httptest.NewRecorder()
+	e.ServeHTTP(refRec, refReq)
+	require.Equal(t, http.StatusOK, refRec.Code, "body: %s", refRec.Body.String())
+	newRefresh := cookieValue(refRec, "refresh_token")
+	require.NotEmpty(t, newRefresh)
+	require.NotEqual(t, refresh, newRefresh, "refresh token must rotate")
+
+	// Reusing the old (consumed) refresh token must fail.
+	reuseReq := httptest.NewRequest(http.MethodPost, "/api/auth/refresh", nil)
+	reuseReq.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh})
+	reuseRec := httptest.NewRecorder()
+	e.ServeHTTP(reuseRec, reuseReq)
+	require.Equal(t, http.StatusUnauthorized, reuseRec.Code, "reused refresh token must be rejected")
+}
+
+func TestHTTP_LogoutRevokesAccessToken(t *testing.T) {
+	e := newTestServer(t)
+
+	rec := httptest.NewRecorder()
+	body := strings.NewReader(`{"email":"out@example.com","username":"out","password":"supersecret","display_name":"Out"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", body)
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+	access := cookieValue(rec, "access_token")
+	refresh := cookieValue(rec, "refresh_token")
+	require.NotEmpty(t, access)
+
+	// Logout revokes the access token's jti.
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+	logoutReq.AddCookie(&http.Cookie{Name: "access_token", Value: access})
+	logoutReq.AddCookie(&http.Cookie{Name: "refresh_token", Value: refresh})
+	logoutRec := httptest.NewRecorder()
+	e.ServeHTTP(logoutRec, logoutReq)
+	require.Equal(t, http.StatusNoContent, logoutRec.Code, "body: %s", logoutRec.Body.String())
+
+	// The same (still-unexpired) access token is now rejected.
+	meReq := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	meReq.AddCookie(&http.Cookie{Name: "access_token", Value: access})
+	meRec := httptest.NewRecorder()
+	e.ServeHTTP(meRec, meReq)
+	require.Equal(t, http.StatusUnauthorized, meRec.Code, "revoked access token must be rejected")
+}
+
 type friendsResp struct {
 	Friends []friend.FriendSummary `json:"friends"`
 }

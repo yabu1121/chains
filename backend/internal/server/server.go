@@ -80,19 +80,28 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 		AllowOrigins: cfg.CORSOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions},
 		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAuthorization},
+		// Cookies (httpOnly auth) must be sent on cross-origin requests; this
+		// requires specific (non-"*") origins — set CORS_ORIGINS in production.
+		AllowCredentials: true,
 	}))
 
 	jwtm := jwt.NewManager(cfg.JWTSecret, cfg.JWTTTL)
-	authmw := middleware.Auth(jwtm)
 
-	authSvc := auth.NewService(auth.NewRepository(db), jwtm, bcrypt.DefaultCost)
+	refreshTTL := cfg.RefreshTTL
+	if refreshTTL <= 0 {
+		refreshTTL = 30 * 24 * time.Hour
+	}
+	tokenStore := auth.NewTokenStore(c, refreshTTL)
+	authmw := middleware.Auth(jwtm, tokenStore)
+
+	authSvc := auth.NewService(auth.NewRepository(db), jwtm, tokenStore, bcrypt.DefaultCost)
 	friendSvc := friend.NewService(friend.NewRepository(db), friend.NewCache(c, cfg.CacheTTL))
 
 	networkSvc := network.NewService(network.NewRepository(db), c)
 	profileSvc := profile.NewService(profile.NewRepository(db), c)
 	avatarSvc := avatar.NewService(avatar.NewRepository(db), c)
 
-	authHandler := auth.NewHandler(authSvc)
+	authHandler := auth.NewHandler(authSvc, auth.CookieConfig{Secure: cfg.CookieSecure, Domain: cfg.CookieDomain})
 	friendHandler := friend.NewHandler(friendSvc)
 	userHandler := user.NewHandler(user.NewRepository(db))
 	networkHandler := network.NewHandler(networkSvc)

@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 
@@ -9,14 +10,30 @@ import (
 	"github.com/cymed/chains/backend/internal/platform/middleware"
 )
 
+// refreshCookieName is the httpOnly cookie carrying the opaque refresh token.
+// Its path is scoped so it is only sent to the refresh/logout endpoints.
+const (
+	refreshCookieName = "refresh_token"
+	refreshCookiePath = "/api/auth"
+)
+
+// CookieConfig controls how auth cookies are emitted. Secure should be true in
+// production (HTTPS); SameSite=Lax plus a restricted CORS origin is the CSRF
+// defence.
+type CookieConfig struct {
+	Secure bool
+	Domain string
+}
+
 // Handler exposes the auth HTTP endpoints.
 type Handler struct {
-	svc *Service
+	svc    *Service
+	cookie CookieConfig
 }
 
 // NewHandler builds a Handler.
-func NewHandler(svc *Service) *Handler {
-	return &Handler{svc: svc}
+func NewHandler(svc *Service, cookie CookieConfig) *Handler {
+	return &Handler{svc: svc, cookie: cookie}
 }
 
 // RegisterRoutes mounts the auth routes. authmw protects the routes that
@@ -25,6 +42,8 @@ func NewHandler(svc *Service) *Handler {
 func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc, credentialMW ...echo.MiddlewareFunc) {
 	g.POST("/auth/register", h.Register, credentialMW...)
 	g.POST("/auth/login", h.Login, credentialMW...)
+	g.POST("/auth/refresh", h.Refresh, credentialMW...)
+	g.POST("/auth/logout", h.Logout, authmw)
 	g.GET("/me", h.Me, authmw)
 }
 
@@ -37,11 +56,11 @@ func (h *Handler) Register(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return err
 	}
-	resp, err := h.svc.Register(c.Request().Context(), req)
+	session, err := h.svc.Register(c.Request().Context(), req)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusCreated, resp)
+	return h.respondWithSession(c, http.StatusCreated, session)
 }
 
 // Login handles POST /auth/login.
@@ -53,11 +72,36 @@ func (h *Handler) Login(c echo.Context) error {
 	if err := c.Validate(&req); err != nil {
 		return err
 	}
-	resp, err := h.svc.Login(c.Request().Context(), req)
+	session, err := h.svc.Login(c.Request().Context(), req)
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, resp)
+	return h.respondWithSession(c, http.StatusOK, session)
+}
+
+// Refresh handles POST /auth/refresh, rotating the refresh cookie and issuing a
+// fresh access token.
+func (h *Handler) Refresh(c echo.Context) error {
+	refresh := readCookie(c, refreshCookieName)
+	session, err := h.svc.Refresh(c.Request().Context(), refresh)
+	if err != nil {
+		// On a bad refresh token, proactively clear the cookies.
+		h.clearAuthCookies(c)
+		return err
+	}
+	return h.respondWithSession(c, http.StatusOK, session)
+}
+
+// Logout handles POST /auth/logout, revoking the refresh token and the current
+// access token, then clearing the cookies.
+func (h *Handler) Logout(c echo.Context) error {
+	jti, exp := middleware.AccessToken(c)
+	refresh := readCookie(c, refreshCookieName)
+	if err := h.svc.Logout(c.Request().Context(), refresh, jti, exp); err != nil {
+		return err
+	}
+	h.clearAuthCookies(c)
+	return c.NoContent(http.StatusNoContent)
 }
 
 // Me handles GET /me.
@@ -71,4 +115,46 @@ func (h *Handler) Me(c echo.Context) error {
 		return err
 	}
 	return c.JSON(http.StatusOK, resp)
+}
+
+// respondWithSession sets the access + refresh cookies and returns the public
+// AuthResponse (access token in the body for non-browser clients; the refresh
+// token is cookie-only).
+func (h *Handler) respondWithSession(c echo.Context, status int, s *Session) error {
+	c.SetCookie(h.newCookie(middleware.AccessCookieName, s.AccessToken, "/", s.AccessExpires))
+	c.SetCookie(h.newCookie(refreshCookieName, s.RefreshToken, refreshCookiePath, s.RefreshExpires))
+	return c.JSON(status, AuthResponse{
+		Token:     s.AccessToken,
+		ExpiresAt: s.AccessExpires,
+		User:      s.User,
+	})
+}
+
+func (h *Handler) clearAuthCookies(c echo.Context) {
+	past := time.Unix(0, 0)
+	c.SetCookie(h.newCookie(middleware.AccessCookieName, "", "/", past))
+	c.SetCookie(h.newCookie(refreshCookieName, "", refreshCookiePath, past))
+}
+
+// newCookie builds an httpOnly, SameSite=Lax cookie. An expiry in the past
+// deletes it.
+func (h *Handler) newCookie(name, value, path string, expires time.Time) *http.Cookie {
+	return &http.Cookie{
+		Name:     name,
+		Value:    value,
+		Path:     path,
+		Domain:   h.cookie.Domain,
+		Expires:  expires,
+		HttpOnly: true,
+		Secure:   h.cookie.Secure,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func readCookie(c echo.Context, name string) string {
+	ck, err := c.Cookie(name)
+	if err != nil || ck == nil {
+		return ""
+	}
+	return ck.Value
 }

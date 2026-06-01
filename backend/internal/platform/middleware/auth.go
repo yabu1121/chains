@@ -2,7 +2,9 @@
 package middleware
 
 import (
+	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -11,22 +13,48 @@ import (
 	"github.com/cymed/chains/backend/internal/platform/jwt"
 )
 
-const userIDKey = "userID"
+// AccessCookieName is the httpOnly cookie carrying the access token. Exported
+// so the auth handler sets the same name the middleware reads.
+const AccessCookieName = "access_token"
 
-// Auth verifies the Bearer token and stores the user ID in the context.
-func Auth(jwtm *jwt.Manager) echo.MiddlewareFunc {
+const (
+	userIDKey    = "userID"
+	accessJTIKey = "accessJTI"
+	accessExpKey = "accessExp"
+)
+
+// AccessRevoker reports whether an access token (by jti) has been revoked.
+// Satisfied by the auth TokenStore; may be nil to skip the check.
+type AccessRevoker interface {
+	IsAccessRevoked(ctx context.Context, jti string) (bool, error)
+}
+
+// Auth verifies the access token (from the httpOnly cookie, falling back to a
+// Bearer header for non-browser clients), rejects revoked tokens, and stores
+// the user ID and token claims in the context.
+func Auth(jwtm *jwt.Manager, revoker AccessRevoker) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			header := c.Request().Header.Get("Authorization")
-			token, ok := bearer(header)
+			token, ok := accessToken(c)
 			if !ok {
-				return httperr.Unauthorized("missing_token", "authorization bearer token required")
+				return httperr.Unauthorized("missing_token", "authentication required")
 			}
-			id, err := jwtm.Verify(token)
+			claims, err := jwtm.Verify(token)
 			if err != nil {
 				return httperr.Unauthorized("invalid_token", "invalid or expired token").Wrap(err)
 			}
-			c.Set(userIDKey, id)
+			if revoker != nil {
+				revoked, err := revoker.IsAccessRevoked(c.Request().Context(), claims.ID)
+				if err != nil {
+					return httperr.Internal("could not check token status").Wrap(err)
+				}
+				if revoked {
+					return httperr.Unauthorized("invalid_token", "token has been revoked")
+				}
+			}
+			c.Set(userIDKey, claims.UserID)
+			c.Set(accessJTIKey, claims.ID)
+			c.Set(accessExpKey, claims.ExpiresAt)
 			return next(c)
 		}
 	}
@@ -47,6 +75,23 @@ func MustUserID(c echo.Context) (uuid.UUID, error) {
 		return uuid.Nil, httperr.Internal("authenticated user missing from context")
 	}
 	return id, nil
+}
+
+// AccessToken returns the current access token's jti and expiry as set by Auth,
+// so handlers (e.g. logout) can revoke it. Zero values when unauthenticated.
+func AccessToken(c echo.Context) (jti string, exp time.Time) {
+	jti, _ = c.Get(accessJTIKey).(string)
+	exp, _ = c.Get(accessExpKey).(time.Time)
+	return jti, exp
+}
+
+// accessToken pulls the token from the access cookie, falling back to an
+// "Authorization: Bearer <token>" header.
+func accessToken(c echo.Context) (string, bool) {
+	if ck, err := c.Cookie(AccessCookieName); err == nil && ck != nil && ck.Value != "" {
+		return ck.Value, true
+	}
+	return bearer(c.Request().Header.Get("Authorization"))
 }
 
 func bearer(header string) (string, bool) {

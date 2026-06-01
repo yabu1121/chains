@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cymed/chains/backend/internal/models"
+	"github.com/cymed/chains/backend/internal/platform/cache"
 	"github.com/cymed/chains/backend/internal/platform/httperr"
 	"github.com/cymed/chains/backend/internal/platform/jwt"
 )
@@ -73,7 +74,8 @@ func (f *fakeUserStore) FindByID(_ context.Context, id uuid.UUID) (*models.User,
 }
 
 func newTestService(store userStore) *Service {
-	return NewService(store, jwt.NewManager("test-secret", time.Hour), bcrypt.MinCost)
+	tokens := NewTokenStore(cache.NewMemory(), time.Hour)
+	return NewService(store, jwt.NewManager("test-secret", time.Hour), tokens, bcrypt.MinCost)
 }
 
 func assertHTTPStatus(t *testing.T, err error, status int, code string) {
@@ -93,11 +95,12 @@ func TestRegister_Success(t *testing.T) {
 		DisplayName: "Alice",
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp.Token)
+	require.NotEmpty(t, resp.AccessToken)
+	require.NotEmpty(t, resp.RefreshToken)
 	require.Equal(t, "alice@example.com", resp.User.Email, "email should be normalised")
 	require.Equal(t, "alice_01", resp.User.Username, "username should be normalised to lowercase")
 	require.NotEqual(t, uuid.Nil, resp.User.ID)
-	require.WithinDuration(t, time.Now().Add(time.Hour), resp.ExpiresAt, time.Minute)
+	require.WithinDuration(t, time.Now().Add(time.Hour), resp.AccessExpires, time.Minute)
 }
 
 func TestRegister_DuplicateEmail(t *testing.T) {
@@ -197,7 +200,7 @@ func TestLogin_Success(t *testing.T) {
 
 	resp, err := svc.Login(context.Background(), LoginRequest{Email: "DAVE@example.com", Password: "supersecret"})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp.Token)
+	require.NotEmpty(t, resp.AccessToken)
 }
 
 func TestLogin_WrongPassword(t *testing.T) {

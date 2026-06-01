@@ -10,8 +10,8 @@ import (
 
 // RegisterRequest is the body for account creation.
 type RegisterRequest struct {
-	Email       string `json:"email" validate:"required,email,max=254"`
-	Username    string `json:"username" validate:"required,min=3,max=30"`
+	Email    string `json:"email" validate:"required,email,max=254"`
+	Username string `json:"username" validate:"required,min=3,max=30"`
 	// Length is authoritatively enforced in bytes by the service (bcrypt's
 	// 72-byte limit); these rune-based tags are only a cheap first pass.
 	Password    string `json:"password" validate:"required,min=8,max=72"`
@@ -43,11 +43,23 @@ type UserResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// AuthResponse is returned by register and login.
+// AuthResponse is returned by register, login and refresh. Token carries the
+// short-lived access token (also set as an httpOnly cookie); the refresh token
+// is never placed in the body — it lives only in its own httpOnly cookie.
 type AuthResponse struct {
 	Token     string       `json:"token"`
 	ExpiresAt time.Time    `json:"expires_at"`
 	User      UserResponse `json:"user"`
+}
+
+// Session is the internal result of authenticating: the access + refresh token
+// pair and the user. The handler turns this into cookies (+ an AuthResponse).
+type Session struct {
+	AccessToken    string
+	AccessExpires  time.Time
+	RefreshToken   string
+	RefreshExpires time.Time
+	User           UserResponse
 }
 
 func toUserResponse(u *models.User) UserResponse {
