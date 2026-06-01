@@ -1,4 +1,4 @@
-.PHONY: help infra-up infra-down backend-run backend-dev backend-test backend-tidy backend-vet frontend-install frontend-dev frontend-build
+.PHONY: help infra-up infra-down backend-run backend-dev backend-migrate backend-test backend-tidy backend-vet frontend-install frontend-dev frontend-build
 
 help:
 	@echo "Chains — make targets:"
@@ -6,6 +6,7 @@ help:
 	@echo "  infra-down       stop infrastructure"
 	@echo "  backend-run      run the Go API against PostgreSQL+Redis from infra-up"
 	@echo "  backend-dev      run the Go API on an embedded PostgreSQL (no Docker needed)"
+	@echo "  backend-migrate  apply DB migrations (separate from API start-up)"
 	@echo "  backend-test     run all Go tests (embedded postgres + miniredis)"
 	@echo "  backend-tidy     go mod tidy"
 	@echo "  backend-vet      go vet ./..."
@@ -24,6 +25,9 @@ backend-run:
 
 backend-dev:
 	cd backend && go run ./cmd/devserver
+
+backend-migrate:
+	cd backend && go run ./cmd/migrate
 
 backend-test:
 	cd backend && go test ./...
