@@ -78,7 +78,7 @@ const minJWTSecretLen = 32
 func Load() (*Config, error) {
 	cfg := &Config{
 		AppEnv:         env("APP_ENV", "production"),
-		HTTPAddr:       env("HTTP_ADDR", ":8080"),
+		HTTPAddr:       env("HTTP_ADDR", defaultHTTPAddr()),
 		DatabaseURL:    env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
 		RedisAddr:      env("REDIS_ADDR", "localhost:6379"),
 		RedisDB:        envInt("REDIS_DB", 0),
@@ -116,6 +116,15 @@ func Load() (*Config, error) {
 	cfg.CookieSecure = envBool("COOKIE_SECURE", !isDev)
 
 	return cfg, nil
+}
+
+// defaultHTTPAddr honours the PORT env var that container platforms (Cloud Run,
+// Heroku, …) inject, falling back to :8080. An explicit HTTP_ADDR overrides it.
+func defaultHTTPAddr() string {
+	if p := os.Getenv("PORT"); p != "" {
+		return ":" + p
+	}
+	return ":8080"
 }
 
 func envBool(key string, def bool) bool {

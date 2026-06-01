@@ -18,7 +18,8 @@ WORKDIR /app
 COPY --from=build /out/api /app/api
 COPY --from=build /out/migrate /app/migrate
 
-ENV HTTP_ADDR=:8080
+# Listen address is taken from $PORT (set by Cloud Run et al.), defaulting to
+# :8080; set HTTP_ADDR only to override.
 EXPOSE 8080
 USER nonroot:nonroot
 
