@@ -4,6 +4,10 @@ node_modules/
 out/
 npm-debug.log*
 
+# TypeScript incremental build cache (machine-local, should not be tracked)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # Go
 /backend/bin/
 /backend/api
