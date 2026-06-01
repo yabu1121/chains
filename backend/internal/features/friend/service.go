@@ -19,6 +19,7 @@ type store interface {
 	GetFriendship(ctx context.Context, a, b uuid.UUID) (*models.Friendship, error)
 	GetFriendshipByID(ctx context.Context, id uuid.UUID) (*models.Friendship, error)
 	CreateFriendship(ctx context.Context, f *models.Friendship) error
+	CreateFriendshipUnlessBlocked(ctx context.Context, f *models.Friendship) error
 	AcceptFriendship(ctx context.Context, id, addresseeID uuid.UUID, at time.Time) (int64, error)
 	DeleteFriendship(ctx context.Context, id uuid.UUID) error
 	DeleteFriendshipBetween(ctx context.Context, a, b uuid.UUID) (int64, error)
@@ -85,11 +86,18 @@ func (s *Service) SendRequest(ctx context.Context, requesterID, addresseeID uuid
 		AddresseeID: addresseeID,
 		Status:      models.FriendshipPending,
 	}
-	if err := s.store.CreateFriendship(ctx, f); err != nil {
-		if errors.Is(err, gorm.ErrDuplicatedKey) {
+	// The block check above is a fast/friendly path; this insert re-checks the
+	// block while holding row locks on the pair, so a block committing
+	// concurrently cannot leave a stray pending request behind.
+	if err := s.store.CreateFriendshipUnlessBlocked(ctx, f); err != nil {
+		switch {
+		case errors.Is(err, ErrBlocked):
+			return nil, httperr.Forbidden("blocked", "you cannot send a request to this user")
+		case errors.Is(err, gorm.ErrDuplicatedKey):
 			return nil, httperr.Conflict("request_exists", "a relationship with this user already exists")
+		default:
+			return nil, httperr.Internal("could not create request").Wrap(err)
 		}
-		return nil, httperr.Internal("could not create request").Wrap(err)
 	}
 
 	s.cache.InvalidatePair(ctx, requesterID, addresseeID)

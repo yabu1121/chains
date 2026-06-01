@@ -2,6 +2,7 @@ package friend
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,6 +64,45 @@ func (r *Repository) GetFriendshipByID(ctx context.Context, id uuid.UUID) (*mode
 // violation surfaces as gorm.ErrDuplicatedKey.
 func (r *Repository) CreateFriendship(ctx context.Context, f *models.Friendship) error {
 	return r.db.WithContext(ctx).Create(f).Error
+}
+
+// ErrBlocked is returned by CreateFriendshipUnlessBlocked when a block exists
+// between the pair at insert time.
+var ErrBlocked = errors.New("blocked pair")
+
+// CreateFriendshipUnlessBlocked inserts a friendship only if neither user has
+// blocked the other, holding row locks on both user rows for the duration so a
+// concurrent BlockUser on the same pair cannot interleave. Without this, a send
+// could pass its block check, a block could commit, and the send could then
+// insert a pending row that the block was meant to prevent (a stray request).
+func (r *Repository) CreateFriendshipUnlessBlocked(ctx context.Context, f *models.Friendship) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockUserPair(tx, f.RequesterID, f.AddresseeID); err != nil {
+			return err
+		}
+		var blocked int64
+		if err := tx.Model(&models.Block{}).
+			Where("(blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)",
+				f.RequesterID, f.AddresseeID, f.AddresseeID, f.RequesterID).
+			Count(&blocked).Error; err != nil {
+			return err
+		}
+		if blocked > 0 {
+			return ErrBlocked
+		}
+		return tx.Create(f).Error
+	})
+}
+
+// lockUserPair takes FOR UPDATE locks on both user rows, ordered by id so any
+// two transactions touching the same pair acquire the locks in the same order
+// and cannot deadlock.
+func lockUserPair(tx *gorm.DB, a, b uuid.UUID) error {
+	var locked []models.User
+	return tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id IN ?", []uuid.UUID{a, b}).
+		Order("id").
+		Find(&locked).Error
 }
 
 // AcceptFriendship marks a pending row accepted, but only if it is still
@@ -176,6 +216,12 @@ func (r *Repository) IsBlockedEitherWay(ctx context.Context, a, b uuid.UUID) (bo
 // block from blocker to blocked. A repeated block is a no-op (idempotent).
 func (r *Repository) BlockUser(ctx context.Context, blocker, blocked uuid.UUID) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Lock the pair first (same order as CreateFriendshipUnlessBlocked) so
+		// a concurrent send request is serialised behind us and cannot leave a
+		// stray pending row after we delete existing relationships.
+		if err := lockUserPair(tx, blocker, blocked); err != nil {
+			return err
+		}
 		if err := tx.
 			Where("(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)", blocker, blocked, blocked, blocker).
 			Delete(&models.Friendship{}).Error; err != nil {
