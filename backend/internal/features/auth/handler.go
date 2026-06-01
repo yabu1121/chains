@@ -20,10 +20,11 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // RegisterRoutes mounts the auth routes. authmw protects the routes that
-// require a logged-in user.
-func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc) {
-	g.POST("/auth/register", h.Register)
-	g.POST("/auth/login", h.Login)
+// require a logged-in user. credentialMW (e.g. a rate limiter) is applied to
+// the unauthenticated credential endpoints to slow brute-force attempts.
+func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc, credentialMW ...echo.MiddlewareFunc) {
+	g.POST("/auth/register", h.Register, credentialMW...)
+	g.POST("/auth/login", h.Login, credentialMW...)
 	g.GET("/me", h.Me, authmw)
 }
 
