@@ -1,6 +1,6 @@
 # GCP（Cloud Run）へのデプロイ
 
-> English version: [DEPLOY_GCP.md](DEPLOY_GCP.md)
+> English version: [DEPLOY_GCP.md](DEPLOY_GCP.md) ・ コンソール(UI)だけで進めたい場合: [DEPLOY_GCP_UI.ja.md](DEPLOY_GCP_UI.ja.md)
 
 バックエンド・フロントエンドはどちらもコンテナ（`backend/Dockerfile`,
 `frontend/Dockerfile`）として **Cloud Run** で動かし、**Cloud SQL**
