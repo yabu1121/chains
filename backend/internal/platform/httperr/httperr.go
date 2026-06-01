@@ -5,6 +5,7 @@ package httperr
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -76,6 +77,29 @@ func Handler(err error, c echo.Context) {
 		} else {
 			msg = http.StatusText(status)
 		}
+	}
+
+	// Server errors carry a cause that is deliberately hidden from the client
+	// (the public message is generic). Log it here — with the wrapped cause —
+	// so 5xx failures are actually diagnosable instead of vanishing.
+	if status >= http.StatusInternalServerError {
+		// *Error.Error() returns only the generic public message, so surface
+		// the wrapped cause explicitly when there is one.
+		cause := err
+		if appErr != nil {
+			if u := appErr.Unwrap(); u != nil {
+				cause = u
+			}
+		}
+		req := c.Request()
+		slog.Error("request failed",
+			"status", status,
+			"code", code,
+			"method", req.Method,
+			"uri", req.RequestURI,
+			"request_id", c.Response().Header().Get(echo.HeaderXRequestID),
+			"error", cause,
+		)
 	}
 
 	_ = c.JSON(status, body{Error: responseError{Code: code, Message: msg}})
