@@ -1,0 +1,8 @@
+# Build artifacts and local-only files; everything needed is the Go source.
+bin/
+api
+devserver
+*.test
+*.log
+.git
+.github
