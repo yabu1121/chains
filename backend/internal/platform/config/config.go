@@ -19,12 +19,23 @@ type Config struct {
 	CacheTTL    time.Duration
 }
 
+// minJWTSecretLen is the minimum acceptable HS256 secret length outside of
+// development. 32 bytes matches the HS256 output size; shorter secrets weaken
+// the signature against brute force.
+const minJWTSecretLen = 32
+
 // Load reads configuration from the environment, applying sane defaults for
 // local development. It returns an error only for values that cannot have a
 // safe default (the JWT secret outside of dev).
+//
+// APP_ENV defaults to "production" so that a deployment which simply forgot to
+// set it fails closed — it will demand a real JWT_SECRET rather than silently
+// booting with the insecure development default. Local development uses the
+// devserver binary (which sets APP_ENV=development explicitly) or an explicit
+// APP_ENV=development.
 func Load() (*Config, error) {
 	cfg := &Config{
-		AppEnv:      env("APP_ENV", "development"),
+		AppEnv:      env("APP_ENV", "production"),
 		HTTPAddr:    env("HTTP_ADDR", ":8080"),
 		DatabaseURL: env("DATABASE_URL", "postgres://chains:chains@localhost:5432/chains?sslmode=disable"),
 		RedisAddr:   env("REDIS_ADDR", "localhost:6379"),
@@ -35,12 +46,15 @@ func Load() (*Config, error) {
 		CacheTTL:    envDuration("CACHE_TTL", 5*time.Minute),
 	}
 
+	isDev := cfg.AppEnv == "development" || cfg.AppEnv == "test"
 	if cfg.JWTSecret == "" {
-		if cfg.AppEnv == "development" || cfg.AppEnv == "test" {
+		if isDev {
 			cfg.JWTSecret = "dev-insecure-secret-change-me"
 		} else {
-			return nil, fmt.Errorf("JWT_SECRET must be set when APP_ENV=%s", cfg.AppEnv)
+			return nil, fmt.Errorf("JWT_SECRET must be set when APP_ENV=%q", cfg.AppEnv)
 		}
+	} else if !isDev && len(cfg.JWTSecret) < minJWTSecretLen {
+		return nil, fmt.Errorf("JWT_SECRET must be at least %d bytes when APP_ENV=%q", minJWTSecretLen, cfg.AppEnv)
 	}
 
 	return cfg, nil
