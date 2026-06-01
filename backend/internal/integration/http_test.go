@@ -99,6 +99,18 @@ func TestHTTP_BodyLimitRejectsOversizedRequest(t *testing.T) {
 	require.Equal(t, http.StatusRequestEntityTooLarge, rec.Code, "body: %s", rec.Body.String())
 }
 
+func TestHTTP_SecurityHeadersPresent(t *testing.T) {
+	e := newTestServer(t)
+	req := httptest.NewRequest(http.MethodGet, "/health", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, "nosniff", rec.Header().Get("X-Content-Type-Options"))
+	require.Equal(t, "DENY", rec.Header().Get("X-Frame-Options"))
+	require.Equal(t, "no-referrer", rec.Header().Get("Referrer-Policy"))
+	require.NotEmpty(t, rec.Header().Get("Content-Security-Policy"))
+}
+
 func TestHTTP_NetworkGraph(t *testing.T) {
 	e := newTestServer(t)
 	alice := register(t, e, "alice@example.com", "Alice")

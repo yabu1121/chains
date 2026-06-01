@@ -39,6 +39,20 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 	// unbounded upload. Set above the avatar upload ceiling (2 MiB) — the
 	// avatar route additionally enforces its own, tighter MaxBytesReader.
 	e.Use(emw.BodyLimit("4M"))
+	// Baseline security response headers. This is a JSON API that should never
+	// be framed or sniffed, so lock those down and ship a deny-all CSP. HSTS is
+	// only meaningful once TLS is terminated, so enable it in production only.
+	secure := emw.SecureConfig{
+		ContentTypeNosniff:    "nosniff",
+		XFrameOptions:         "DENY",
+		ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none'",
+		ReferrerPolicy:        "no-referrer",
+	}
+	if cfg.AppEnv == "production" {
+		secure.HSTSMaxAge = 31536000 // 1 year
+		secure.HSTSPreloadEnabled = true
+	}
+	e.Use(emw.SecureWithConfig(secure))
 	e.Use(emw.RequestLoggerWithConfig(emw.RequestLoggerConfig{
 		LogStatus:  true,
 		LogMethod:  true,
