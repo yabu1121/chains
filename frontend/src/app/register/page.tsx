@@ -93,6 +93,9 @@ export default function RegisterPage() {
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
           Already have an account? <Link href="/login">Log in</Link>
         </p>
+        <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
+          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy policy</Link>
+        </p>
       </form>
     </div>
   );
