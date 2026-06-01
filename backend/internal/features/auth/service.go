@@ -40,9 +40,10 @@ type userStore interface {
 
 // Service implements registration, login and profile lookup.
 type Service struct {
-	users  userStore
-	jwt    *jwt.Manager
-	bcrypt int
+	users     userStore
+	jwt       *jwt.Manager
+	bcrypt    int
+	dummyHash []byte // bcrypt hash compared against when no user is found
 }
 
 // NewService builds a Service. cost is the bcrypt cost (use bcrypt.DefaultCost).
@@ -50,7 +51,11 @@ func NewService(users userStore, jwtm *jwt.Manager, bcryptCost int) *Service {
 	if bcryptCost == 0 {
 		bcryptCost = bcrypt.DefaultCost
 	}
-	return &Service{users: users, jwt: jwtm, bcrypt: bcryptCost}
+	// Precompute a hash at the same cost so Login can spend a comparable
+	// amount of time when the account does not exist, removing the timing
+	// side-channel that would otherwise reveal which emails are registered.
+	dummy, _ := bcrypt.GenerateFromPassword([]byte("dummy-password-for-constant-time"), bcryptCost)
+	return &Service{users: users, jwt: jwtm, bcrypt: bcryptCost, dummyHash: dummy}
 }
 
 // Register creates an account and returns a freshly issued token.
@@ -110,6 +115,9 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 	user, err := s.users.FindByEmail(ctx, normaliseEmail(req.Email))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Spend a comparable amount of time hashing so the response
+			// latency does not reveal that the account is absent.
+			_ = bcrypt.CompareHashAndPassword(s.dummyHash, []byte(req.Password))
 			return nil, errInvalidCredentials()
 		}
 		return nil, httperr.Internal("could not load user").Wrap(err)
