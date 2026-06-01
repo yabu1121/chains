@@ -270,6 +270,28 @@ func TestHTTP_DeleteAccount(t *testing.T) {
 	require.Equal(t, http.StatusUnauthorized, meRec.Code)
 }
 
+func TestHTTP_AvatarUploadAndFetch(t *testing.T) {
+	e := newTestServer(t)
+	alice := register(t, e, "pic_user@example.com", "Pic")
+	aliceID := decode[auth.UserResponse](t, alice.do(http.MethodGet, "/api/me", nil)).ID.String()
+
+	// Minimal valid PNG header so DetectContentType returns image/png.
+	png := append([]byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}, []byte("rest-of-image")...)
+
+	putReq := httptest.NewRequest(http.MethodPut, "/api/me/avatar", bytes.NewReader(png))
+	putReq.Header.Set(echo.HeaderContentType, "image/png")
+	putReq.Header.Set(echo.HeaderAuthorization, "Bearer "+alice.token)
+	putRec := httptest.NewRecorder()
+	e.ServeHTTP(putRec, putReq)
+	require.Equal(t, http.StatusOK, putRec.Code, "body: %s", putRec.Body.String())
+
+	// Fetch it back through the (default Postgres) blob store.
+	getRec := alice.do(http.MethodGet, "/api/users/"+aliceID+"/avatar", nil)
+	require.Equal(t, http.StatusOK, getRec.Code)
+	require.Equal(t, "image/png", getRec.Header().Get(echo.HeaderContentType))
+	require.Equal(t, png, getRec.Body.Bytes())
+}
+
 func TestHTTP_AvatarRequiresAuth(t *testing.T) {
 	e := newTestServer(t)
 	alice := register(t, e, "avatar_user@example.com", "Av")
