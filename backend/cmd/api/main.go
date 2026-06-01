@@ -38,10 +38,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if err := database.Migrate(db); err != nil {
-		return err
+	if cfg.AutoMigrate {
+		if err := database.Migrate(db); err != nil {
+			return err
+		}
+		log.Printf("database connected and migrated")
+	} else {
+		log.Printf("database connected (AUTO_MIGRATE off; run cmd/migrate to apply migrations)")
 	}
-	log.Printf("database connected and migrated")
 
 	var c cache.Cache
 	if rc, err := cache.NewRedis(cfg.RedisAddr, cfg.RedisDB); err != nil {

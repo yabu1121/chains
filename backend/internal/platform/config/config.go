@@ -29,6 +29,12 @@ type Config struct {
 	DBMaxIdleConns    int
 	DBConnMaxLifetime time.Duration
 	DBConnMaxIdleTime time.Duration
+
+	// AutoMigrate runs schema migrations during API start-up. Defaults to true
+	// in development for convenience and false otherwise, so production
+	// migrations are a deliberate, separate step (cmd/migrate) that does not
+	// race across rolling/horizontally-scaled instances.
+	AutoMigrate bool
 }
 
 // minJWTSecretLen is the minimum acceptable HS256 secret length outside of
@@ -76,7 +82,21 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("JWT_SECRET must be at least %d bytes when APP_ENV=%q", minJWTSecretLen, cfg.AppEnv)
 	}
 
+	cfg.AutoMigrate = envBool("AUTO_MIGRATE", isDev)
+
 	return cfg, nil
+}
+
+func envBool(key string, def bool) bool {
+	if v, ok := os.LookupEnv(key); ok && v != "" {
+		switch v {
+		case "1", "true", "TRUE", "True", "yes", "on":
+			return true
+		case "0", "false", "FALSE", "False", "no", "off":
+			return false
+		}
+	}
+	return def
 }
 
 func env(key, def string) string {
