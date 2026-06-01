@@ -7,20 +7,23 @@ type Lang = "en" | "ja";
 
 /**
  * LegalDoc renders a static legal document in English or Japanese with an
- * in-page language toggle. The content for each language is passed in, so the
- * page stays a server component (keeping its metadata).
+ * in-page language toggle. Content for each language is passed in, so callers
+ * (the /terms and /privacy pages, and the in-app Settings area) keep a single
+ * source of wording. Pass backHref={null} to hide the back link when embedded.
  */
 export function LegalDoc({
   en,
   ja,
+  backHref = "/login",
 }: {
   en: ReactNode;
   ja: ReactNode;
+  backHref?: string | null;
 }) {
   const [lang, setLang] = useState<Lang>("en");
 
   return (
-    <div className="container center-narrow">
+    <>
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginBottom: 8 }}>
         <button
           type="button"
@@ -42,9 +45,11 @@ export function LegalDoc({
 
       {lang === "ja" ? ja : en}
 
-      <p style={{ marginTop: 24 }}>
-        <Link href="/login">← {lang === "ja" ? "戻る" : "Back"}</Link>
-      </p>
-    </div>
+      {backHref ? (
+        <p style={{ marginTop: 24 }}>
+          <Link href={backHref}>← {lang === "ja" ? "戻る" : "Back"}</Link>
+        </p>
+      ) : null}
+    </>
   );
 }
