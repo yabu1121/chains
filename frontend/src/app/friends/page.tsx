@@ -27,11 +27,12 @@ import {
 
 // Top-level navigation. Friends/Requests/Find are nested inside the Friends
 // area (see FriendsArea), so the sidebar only carries these three.
-type Tab = "friends" | "network" | "profile";
+type Tab = "friends" | "network" | "news" | "profile";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "friends", label: "Friends" },
   { key: "network", label: "Network" },
+  { key: "news", label: "News" },
   { key: "profile", label: "Profile" },
 ];
 
@@ -153,6 +154,15 @@ function Dashboard() {
               {tab === "friends" ? <FriendsArea /> : null}
               {tab === "network" ? (
                 <NetworkGraph onEditProfile={() => changeTab("profile")} />
+              ) : null}
+              {tab === "news" ? (
+                <div
+                  className="card"
+                  style={{ textAlign: "center", padding: "48px 24px" }}
+                >
+                  <h2 style={{ marginTop: 0 }}>News</h2>
+                  <p className="muted">Coming soon</p>
+                </div>
               ) : null}
               {tab === "profile" ? <ProfileEditor /> : null}
             </motion.div>
