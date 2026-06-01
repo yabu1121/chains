@@ -50,11 +50,15 @@ func (m *Manager) Issue(userID uuid.UUID) (string, time.Time, error) {
 func (m *Manager) Verify(tokenStr string) (uuid.UUID, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
 		return m.secret, nil
-	}, jwt.WithIssuer(m.issuer))
+	},
+		// Pin the algorithm to HS256 so an attacker cannot downgrade to
+		// "none" or coerce the HMAC secret to be verified as an RSA public key.
+		jwt.WithValidMethods([]string{"HS256"}),
+		// Reject tokens without an exp claim outright.
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuer(m.issuer),
+	)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("parse token: %w", err)
 	}
