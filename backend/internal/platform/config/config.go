@@ -17,6 +17,12 @@ type Config struct {
 	JWTTTL      time.Duration
 	CORSOrigins []string
 	CacheTTL    time.Duration
+
+	// TLS termination. When both are set the server listens with TLS directly;
+	// otherwise it serves plain HTTP and TLS is expected to be terminated at an
+	// upstream proxy / load balancer.
+	TLSCertFile string
+	TLSKeyFile  string
 }
 
 // minJWTSecretLen is the minimum acceptable HS256 secret length outside of
@@ -44,6 +50,8 @@ func Load() (*Config, error) {
 		JWTTTL:      envDuration("JWT_TTL", 24*time.Hour),
 		CORSOrigins: envList("CORS_ORIGINS", []string{"http://localhost:3000"}),
 		CacheTTL:    envDuration("CACHE_TTL", 5*time.Minute),
+		TLSCertFile: env("TLS_CERT_FILE", ""),
+		TLSKeyFile:  env("TLS_KEY_FILE", ""),
 	}
 
 	isDev := cfg.AppEnv == "development" || cfg.AppEnv == "test"

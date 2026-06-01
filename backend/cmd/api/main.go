@@ -54,11 +54,23 @@ func run() error {
 		Addr:              cfg.HTTPAddr,
 		Handler:           e,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    1 << 20, // 1 MiB
 	}
 
+	tlsEnabled := cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
 	go func() {
-		log.Printf("listening on %s", cfg.HTTPAddr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("listening on %s (tls=%t)", cfg.HTTPAddr, tlsEnabled)
+		var err error
+		if tlsEnabled {
+			err = srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile)
+		} else {
+			// TLS is expected to be terminated upstream when not configured here.
+			err = srv.ListenAndServe()
+		}
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server error: %v", err)
 		}
 	}()
