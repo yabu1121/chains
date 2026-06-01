@@ -12,6 +12,8 @@ import (
 type RegisterRequest struct {
 	Email       string `json:"email" validate:"required,email,max=254"`
 	Username    string `json:"username" validate:"required,min=3,max=30"`
+	// Length is authoritatively enforced in bytes by the service (bcrypt's
+	// 72-byte limit); these rune-based tags are only a cheap first pass.
 	Password    string `json:"password" validate:"required,min=8,max=72"`
 	DisplayName string `json:"display_name" validate:"required,min=1,max=50"`
 }

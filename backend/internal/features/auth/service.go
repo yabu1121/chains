@@ -18,6 +18,16 @@ import (
 // usernamePattern allows lowercase letters, digits and underscore, 3-30 chars.
 var usernamePattern = regexp.MustCompile(`^[a-z0-9_]{3,30}$`)
 
+// Password bounds are enforced in *bytes* (not runes). bcrypt silently
+// truncates its input at 72 bytes, so anything longer is both insecure
+// (trailing bytes are ignored) and a foot-gun; we reject it outright. The
+// go-playground validator's min/max count runes, so a multi-byte password can
+// pass `max=72` yet exceed 72 bytes — these checks are the authoritative ones.
+const (
+	minPasswordBytes = 8
+	maxPasswordBytes = 72
+)
+
 // userStore is the data access the service needs; satisfied by *Repository and
 // by mocks in tests.
 type userStore interface {
@@ -49,6 +59,9 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	if !usernamePattern.MatchString(username) {
 		return nil, httperr.BadRequest("invalid_username", "username must be 3-30 characters of lowercase letters, digits or underscore")
+	}
+	if n := len(req.Password); n < minPasswordBytes || n > maxPasswordBytes {
+		return nil, httperr.BadRequest("invalid_password", "password must be between 8 and 72 bytes")
 	}
 
 	if taken, err := s.users.ExistsByEmail(ctx, email); err != nil {
@@ -88,6 +101,12 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 // Login verifies credentials and returns a token. Errors are intentionally
 // uniform to avoid leaking which accounts exist.
 func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
+	// A password longer than bcrypt's 72-byte limit can never be the one we
+	// stored (registration rejects them), so fail uniformly without hashing.
+	// This also bounds the work bcrypt does on attacker-supplied input.
+	if len(req.Password) > maxPasswordBytes {
+		return nil, errInvalidCredentials()
+	}
 	user, err := s.users.FindByEmail(ctx, normaliseEmail(req.Email))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
