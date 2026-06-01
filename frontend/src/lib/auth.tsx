@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiFetch, clearToken, getToken, setToken } from "./api";
+import { apiFetch, ApiError } from "./api";
 import type { AuthResponse, User } from "./types";
 
 interface AuthState {
@@ -23,7 +23,7 @@ interface AuthState {
     displayName: string,
   ) => Promise<void>;
   refreshUser: () => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -32,34 +32,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount, if a token exists, resolve the current user.
+  // On mount, ask the backend who we are. The session lives in httpOnly
+  // cookies, so /api/me (with a silent refresh on 401) is the source of truth;
+  // there is no token for JS to read. A 401 simply means "not logged in".
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false);
-      return;
-    }
     apiFetch<User>("/api/me")
       .then(setUser)
-      .catch(() => clearToken())
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAuth = useCallback((res: AuthResponse) => {
-    setToken(res.token);
+  const login = useCallback(async (email: string, password: string) => {
+    // The backend sets the auth cookies; the body just echoes the user.
+    const res = await apiFetch<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      refreshOn401: false,
+      body: { email, password },
+    });
     setUser(res.user);
   }, []);
-
-  const login = useCallback(
-    async (email: string, password: string) => {
-      const res = await apiFetch<AuthResponse>("/api/auth/login", {
-        method: "POST",
-        auth: false,
-        body: { email, password },
-      });
-      handleAuth(res);
-    },
-    [handleAuth],
-  );
 
   const register = useCallback(
     async (
@@ -70,22 +61,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     ) => {
       const res = await apiFetch<AuthResponse>("/api/auth/register", {
         method: "POST",
-        auth: false,
+        refreshOn401: false,
         body: { email, username, password, display_name: displayName },
       });
-      handleAuth(res);
+      setUser(res.user);
     },
-    [handleAuth],
+    [],
   );
 
   const refreshUser = useCallback(async () => {
-    if (!getToken()) return;
-    const me = await apiFetch<User>("/api/me");
-    setUser(me);
+    try {
+      setUser(await apiFetch<User>("/api/me"));
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) setUser(null);
+      else throw err;
+    }
   }, []);
 
-  const logout = useCallback(() => {
-    clearToken();
+  const logout = useCallback(async () => {
+    // Best-effort server-side revocation; clear local state regardless.
+    try {
+      await apiFetch<void>("/api/auth/logout", {
+        method: "POST",
+        refreshOn401: false,
+      });
+    } catch {
+      // ignore — we still drop the local session below
+    }
     setUser(null);
   }, []);
 
