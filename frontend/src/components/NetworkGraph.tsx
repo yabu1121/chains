@@ -17,7 +17,6 @@ import { Select } from "./Select";
 
 // react-force-graph-2d reaches for `window`, so it must load client-only.
 // Its prop generics don't survive next/dynamic cleanly, hence the cast.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
   ssr: false,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
