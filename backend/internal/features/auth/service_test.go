@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -129,6 +130,49 @@ func TestRegister_InvalidUsername(t *testing.T) {
 		Email: "x@example.com", Username: "ab", Password: "supersecret", DisplayName: "X",
 	})
 	assertHTTPStatus(t, err, 400, "invalid_username")
+}
+
+func TestRegister_PasswordTooShort(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "s@example.com", Username: "shortpw", Password: "1234567", DisplayName: "S",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestRegister_PasswordTooLongInBytes(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	// 73 single-byte chars exceeds bcrypt's 72-byte limit.
+	long := strings.Repeat("a", 73)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "l@example.com", Username: "longpw", Password: long, DisplayName: "L",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestRegister_MultibytePasswordOverByteLimit(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	// 25 three-byte runes = 75 bytes, but only 25 runes — would pass a
+	// rune-based max=72 yet must be rejected by the byte check.
+	pw := strings.Repeat("あ", 25)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "m@example.com", Username: "multipw", Password: pw, DisplayName: "M",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestLogin_OverlongPasswordRejectedUniformly(t *testing.T) {
+	store := newFakeUserStore()
+	svc := newTestService(store)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "u@example.com", Username: "user", Password: "supersecret", DisplayName: "U",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Login(context.Background(), LoginRequest{
+		Email: "u@example.com", Password: strings.Repeat("a", 73),
+	})
+	assertHTTPStatus(t, err, 401, "invalid_credentials")
 }
 
 func TestRegister_StoresHashedPassword(t *testing.T) {
