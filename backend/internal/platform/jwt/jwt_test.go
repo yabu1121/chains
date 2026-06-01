@@ -13,16 +13,32 @@ const testSecret = "test-secret-at-least-32-bytes-long-xxxx"
 func TestIssueVerifyRoundTrip(t *testing.T) {
 	m := NewManager(testSecret, time.Hour)
 	uid := uuid.New()
-	tok, _, err := m.Issue(uid)
+	tok, jti, _, err := m.Issue(uid)
 	if err != nil {
 		t.Fatalf("issue: %v", err)
+	}
+	if jti == "" {
+		t.Fatal("expected a non-empty jti")
 	}
 	got, err := m.Verify(tok)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
-	if got != uid {
-		t.Fatalf("subject = %s, want %s", got, uid)
+	if got.UserID != uid {
+		t.Fatalf("subject = %s, want %s", got.UserID, uid)
+	}
+	if got.ID != jti {
+		t.Fatalf("jti = %s, want %s", got.ID, jti)
+	}
+}
+
+func TestIssueGivesUniqueJTIs(t *testing.T) {
+	m := NewManager(testSecret, time.Hour)
+	uid := uuid.New()
+	_, jti1, _, _ := m.Issue(uid)
+	_, jti2, _, _ := m.Issue(uid)
+	if jti1 == jti2 {
+		t.Fatal("expected distinct jti per issued token")
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -42,12 +43,13 @@ type userStore interface {
 type Service struct {
 	users     userStore
 	jwt       *jwt.Manager
+	tokens    *TokenStore
 	bcrypt    int
 	dummyHash []byte // bcrypt hash compared against when no user is found
 }
 
 // NewService builds a Service. cost is the bcrypt cost (use bcrypt.DefaultCost).
-func NewService(users userStore, jwtm *jwt.Manager, bcryptCost int) *Service {
+func NewService(users userStore, jwtm *jwt.Manager, tokens *TokenStore, bcryptCost int) *Service {
 	if bcryptCost == 0 {
 		bcryptCost = bcrypt.DefaultCost
 	}
@@ -55,11 +57,11 @@ func NewService(users userStore, jwtm *jwt.Manager, bcryptCost int) *Service {
 	// amount of time when the account does not exist, removing the timing
 	// side-channel that would otherwise reveal which emails are registered.
 	dummy, _ := bcrypt.GenerateFromPassword([]byte("dummy-password-for-constant-time"), bcryptCost)
-	return &Service{users: users, jwt: jwtm, bcrypt: bcryptCost, dummyHash: dummy}
+	return &Service{users: users, jwt: jwtm, tokens: tokens, bcrypt: bcryptCost, dummyHash: dummy}
 }
 
-// Register creates an account and returns a freshly issued token.
-func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthResponse, error) {
+// Register creates an account and returns a freshly issued session.
+func (s *Service) Register(ctx context.Context, req RegisterRequest) (*Session, error) {
 	email := normaliseEmail(req.Email)
 	username := strings.ToLower(strings.TrimSpace(req.Username))
 	if !usernamePattern.MatchString(username) {
@@ -100,12 +102,12 @@ func (s *Service) Register(ctx context.Context, req RegisterRequest) (*AuthRespo
 		return nil, httperr.Internal("could not create user").Wrap(err)
 	}
 
-	return s.issue(user)
+	return s.issue(ctx, user)
 }
 
-// Login verifies credentials and returns a token. Errors are intentionally
+// Login verifies credentials and returns a session. Errors are intentionally
 // uniform to avoid leaking which accounts exist.
-func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, error) {
+func (s *Service) Login(ctx context.Context, req LoginRequest) (*Session, error) {
 	// A password longer than bcrypt's 72-byte limit can never be the one we
 	// stored (registration rejects them), so fail uniformly without hashing.
 	// This also bounds the work bcrypt does on attacker-supplied input.
@@ -125,7 +127,43 @@ func (s *Service) Login(ctx context.Context, req LoginRequest) (*AuthResponse, e
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
 		return nil, errInvalidCredentials()
 	}
-	return s.issue(user)
+	return s.issue(ctx, user)
+}
+
+// Refresh rotates a refresh token and issues a new session. An invalid or
+// already-used refresh token yields a 401.
+func (s *Service) Refresh(ctx context.Context, refreshToken string) (*Session, error) {
+	userID, err := s.tokens.ConsumeRefresh(ctx, refreshToken)
+	if err != nil {
+		if errors.Is(err, ErrInvalidRefresh) {
+			return nil, httperr.Unauthorized("invalid_refresh", "session expired; please log in again")
+		}
+		return nil, httperr.Internal("could not refresh session").Wrap(err)
+	}
+	user, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Account gone (e.g. deleted) but token still around: treat as logged out.
+			return nil, httperr.Unauthorized("invalid_refresh", "session expired; please log in again")
+		}
+		return nil, httperr.Internal("could not load user").Wrap(err)
+	}
+	return s.issue(ctx, user)
+}
+
+// Logout revokes the refresh token and denylists the current access token's
+// jti for its remaining lifetime. Missing/empty inputs are tolerated so logout
+// is idempotent.
+func (s *Service) Logout(ctx context.Context, refreshToken, accessJTI string, accessExp time.Time) error {
+	if err := s.tokens.DeleteRefresh(ctx, refreshToken); err != nil {
+		return httperr.Internal("could not revoke refresh token").Wrap(err)
+	}
+	if ttl := time.Until(accessExp); ttl > 0 {
+		if err := s.tokens.RevokeAccess(ctx, accessJTI, ttl); err != nil {
+			return httperr.Internal("could not revoke access token").Wrap(err)
+		}
+	}
+	return nil
 }
 
 // Me returns the current user's profile.
@@ -141,15 +179,22 @@ func (s *Service) Me(ctx context.Context, userID uuid.UUID) (*UserResponse, erro
 	return &resp, nil
 }
 
-func (s *Service) issue(user *models.User) (*AuthResponse, error) {
-	token, exp, err := s.jwt.Issue(user.ID)
+// issue mints a fresh access+refresh pair for a user.
+func (s *Service) issue(ctx context.Context, user *models.User) (*Session, error) {
+	access, _, accessExp, err := s.jwt.Issue(user.ID)
 	if err != nil {
 		return nil, httperr.Internal("could not issue token").Wrap(err)
 	}
-	return &AuthResponse{
-		Token:     token,
-		ExpiresAt: exp,
-		User:      toUserResponse(user),
+	refresh, refreshExp, err := s.tokens.CreateRefresh(ctx, user.ID)
+	if err != nil {
+		return nil, httperr.Internal("could not issue refresh token").Wrap(err)
+	}
+	return &Session{
+		AccessToken:    access,
+		AccessExpires:  accessExp,
+		RefreshToken:   refresh,
+		RefreshExpires: refreshExp,
+		User:           toUserResponse(user),
 	}, nil
 }
 
