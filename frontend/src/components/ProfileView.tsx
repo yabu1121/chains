@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { PublicProfile } from "@/lib/types";
 import { Avatar } from "./Avatar";
+import { safeHttpUrl } from "@/lib/url";
 
 type Platform = "X" | "GitHub" | "Zenn" | "LinkedIn" | "Portfolio";
 
@@ -56,10 +57,15 @@ function links(p: PublicProfile): LinkItem[] {
     out.push({ platform: "GitHub", detail: `@${p.github_handle}`, href: `https://github.com/${p.github_handle}` });
   if (p.zenn_handle)
     out.push({ platform: "Zenn", detail: `@${p.zenn_handle}`, href: `https://zenn.dev/${p.zenn_handle}` });
-  if (p.linkedin_url)
-    out.push({ platform: "LinkedIn", detail: prettyUrl(p.linkedin_url), href: p.linkedin_url });
-  if (p.portfolio_url)
-    out.push({ platform: "Portfolio", detail: prettyUrl(p.portfolio_url), href: p.portfolio_url });
+  // linkedin_url / portfolio_url are user-supplied free-form URLs, so verify
+  // the scheme is http(s) before trusting them in an href. A non-http URL
+  // (e.g. javascript:) is dropped rather than rendered as a clickable link.
+  const linkedin = safeHttpUrl(p.linkedin_url);
+  if (linkedin)
+    out.push({ platform: "LinkedIn", detail: prettyUrl(p.linkedin_url), href: linkedin });
+  const portfolio = safeHttpUrl(p.portfolio_url);
+  if (portfolio)
+    out.push({ platform: "Portfolio", detail: prettyUrl(p.portfolio_url), href: portfolio });
   return out;
 }
 
