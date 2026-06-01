@@ -9,13 +9,16 @@ export const metadata: Metadata = {
   description: "Make connections — friends only.",
 };
 
-// The API base URL is resolved at request time on the server, so one container
-// image can be pointed at any API via an env var (no rebuild). Falls back to
-// the build-time NEXT_PUBLIC value for local dev.
-const apiBaseUrl =
-  process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+// Render at request time (not build time) so process.env.API_BASE_URL is read
+// from the runtime container env rather than frozen into static HTML.
+export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  // The API base URL is resolved per request on the server, so one container
+  // image can be pointed at any API via an env var (no rebuild). Falls back to
+  // the build-time NEXT_PUBLIC value for local dev.
+  const apiBaseUrl =
+    process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
   return (
     <html lang="en">
       <body>
