@@ -9,8 +9,35 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Open establishes a GORM connection to PostgreSQL with pooled settings.
-func Open(dsn string, debug bool) (*gorm.DB, error) {
+// PoolConfig tunes the underlying database/sql connection pool. A zero value
+// for any field falls back to a sensible default, so callers that do not care
+// can pass PoolConfig{}.
+type PoolConfig struct {
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
+	ConnMaxIdleTime time.Duration
+}
+
+func (p PoolConfig) withDefaults() PoolConfig {
+	if p.MaxOpenConns <= 0 {
+		p.MaxOpenConns = 25
+	}
+	if p.MaxIdleConns <= 0 {
+		p.MaxIdleConns = 5
+	}
+	if p.ConnMaxLifetime <= 0 {
+		p.ConnMaxLifetime = time.Hour
+	}
+	if p.ConnMaxIdleTime <= 0 {
+		p.ConnMaxIdleTime = 10 * time.Minute
+	}
+	return p
+}
+
+// Open establishes a GORM connection to PostgreSQL with the given pool
+// settings (defaults applied for any zero field).
+func Open(dsn string, debug bool, pool PoolConfig) (*gorm.DB, error) {
 	logLevel := logger.Warn
 	if debug {
 		logLevel = logger.Info
@@ -29,9 +56,11 @@ func Open(dsn string, debug bool) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get sql.DB: %w", err)
 	}
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	pool = pool.withDefaults()
+	sqlDB.SetMaxOpenConns(pool.MaxOpenConns)
+	sqlDB.SetMaxIdleConns(pool.MaxIdleConns)
+	sqlDB.SetConnMaxLifetime(pool.ConnMaxLifetime)
+	sqlDB.SetConnMaxIdleTime(pool.ConnMaxIdleTime)
 
 	return db, nil
 }
