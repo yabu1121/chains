@@ -1,5 +1,7 @@
 # Deployment
 
+> 日本語版: [DEPLOYMENT.ja.md](DEPLOYMENT.ja.md) ・ GCP 手順: [DEPLOY_GCP.md](DEPLOY_GCP.md)
+
 Production deployment notes for Chains. See `backend/.env.example` and
 `frontend/.env.local.example` for the full list of variables.
 
@@ -13,8 +15,10 @@ Production deployment notes for Chains. See `backend/.env.example` and
 | `JWT_SECRET`    | yes      | ≥ 32 bytes. `openssl rand -base64 48`. Boot fails if missing/short.   |
 | `DATABASE_URL`  | yes      | Use `sslmode=require` (or `verify-full`).                             |
 | `CORS_ORIGINS`  | yes      | Exact site origin(s), comma-separated. Never `*` in production.       |
-| `REDIS_ADDR`    | yes      | Required by default (`REQUIRE_REDIS=true`) for multi-instance caches.  |
-| `JWT_TTL`       | no       | Default `24h`.                                                        |
+| `COOKIE_SAMESITE` | no     | `lax` (default) when site+API share a domain; `none` for cross-site hosts (forces Secure). |
+| `REDIS_ADDR`    | yes\*    | Required by default (`REQUIRE_REDIS=true`). Set `REQUIRE_REDIS=false` for a single instance. |
+| `JWT_TTL` / `REFRESH_TTL` | no | Access / refresh token lifetimes. Defaults `15m` / `720h`.        |
+| `AVATAR_STORAGE` | no      | `postgres` (default) or `fs`. See blobstore.                         |
 | `AUTO_MIGRATE`  | no       | Default `false` in production — run migrations separately (below).    |
 | `TLS_CERT_FILE` / `TLS_KEY_FILE` | no | Set both for in-process TLS; otherwise terminate TLS upstream. |
 

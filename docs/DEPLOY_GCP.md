@@ -1,5 +1,7 @@
 # Deploying to GCP (Cloud Run)
 
+> 日本語版: [DEPLOY_GCP.ja.md](DEPLOY_GCP.ja.md)
+
 Both services ship as containers (`backend/Dockerfile`, `frontend/Dockerfile`)
 and run on **Cloud Run**, backed by **Cloud SQL** (PostgreSQL). This guide gets
 you to a working deployment with the fewest moving parts, then shows how to add
