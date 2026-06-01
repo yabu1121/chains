@@ -14,6 +14,8 @@ type Cache interface {
 	Get(ctx context.Context, key string) ([]byte, bool, error)
 	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
 	Delete(ctx context.Context, keys ...string) error
+	// Ping reports whether the backing store is reachable, for readiness checks.
+	Ping(ctx context.Context) error
 	Close() error
 }
 

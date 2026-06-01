@@ -62,4 +62,8 @@ func (m *Memory) Delete(_ context.Context, keys ...string) error {
 	return nil
 }
 
+// Ping always succeeds; the in-memory cache is reachable whenever the process
+// is running.
+func (m *Memory) Ping(_ context.Context) error { return nil }
+
 func (m *Memory) Close() error { return nil }

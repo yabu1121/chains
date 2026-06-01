@@ -51,4 +51,7 @@ func (r *Redis) Delete(ctx context.Context, keys ...string) error {
 	return r.client.Del(ctx, keys...).Err()
 }
 
+// Ping verifies the Redis server is reachable.
+func (r *Redis) Ping(ctx context.Context) error { return r.client.Ping(ctx).Err() }
+
 func (r *Redis) Close() error { return r.client.Close() }
