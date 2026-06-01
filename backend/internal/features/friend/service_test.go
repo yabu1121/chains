@@ -67,6 +67,13 @@ func (f *fakeStore) CreateFriendship(_ context.Context, fr *models.Friendship) e
 	return nil
 }
 
+func (f *fakeStore) CreateFriendshipUnlessBlocked(ctx context.Context, fr *models.Friendship) error {
+	if blocked, _ := f.IsBlockedEitherWay(ctx, fr.RequesterID, fr.AddresseeID); blocked {
+		return ErrBlocked
+	}
+	return f.CreateFriendship(ctx, fr)
+}
+
 func (f *fakeStore) AcceptFriendship(_ context.Context, id, addresseeID uuid.UUID, at time.Time) (int64, error) {
 	fr := f.friendships[id]
 	if fr == nil || fr.AddresseeID != addresseeID || fr.Status != models.FriendshipPending {

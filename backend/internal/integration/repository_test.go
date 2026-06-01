@@ -111,6 +111,26 @@ func TestFriendRepo_AcceptFriendshipIsCAS(t *testing.T) {
 	require.Equal(t, int64(0), n, "accepting an already-accepted row must affect 0 rows")
 }
 
+func TestFriendRepo_CreateFriendshipUnlessBlocked(t *testing.T) {
+	db := freshDB(t)
+	a := insertUser(t, db, "sender@example.com", "Sender")
+	b := insertUser(t, db, "target@example.com", "Target")
+	repo := friend.NewRepository(db)
+	ctx := context.Background()
+
+	// b blocks a.
+	require.NoError(t, repo.BlockUser(ctx, b.ID, a.ID))
+
+	// a's request must be refused, and no stray pending row may be left.
+	err := repo.CreateFriendshipUnlessBlocked(ctx, &models.Friendship{
+		ID: uuid.New(), RequesterID: a.ID, AddresseeID: b.ID, Status: models.FriendshipPending,
+	})
+	require.ErrorIs(t, err, friend.ErrBlocked)
+
+	_, err = repo.GetFriendship(ctx, a.ID, b.ID)
+	require.ErrorIs(t, err, gorm.ErrRecordNotFound, "no friendship row should exist after a blocked send")
+}
+
 func TestFriendRepo_SelfFriendshipRejected(t *testing.T) {
 	db := freshDB(t)
 	a := insertUser(t, db, "self@example.com", "Self")
