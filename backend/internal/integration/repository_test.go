@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -79,6 +80,35 @@ func TestFriendRepo_SymmetricUniquePreventsReversePair(t *testing.T) {
 		ID: uuid.New(), RequesterID: b.ID, AddresseeID: a.ID, Status: models.FriendshipPending,
 	})
 	require.ErrorIs(t, err, gorm.ErrDuplicatedKey)
+}
+
+func TestFriendRepo_AcceptFriendshipIsCAS(t *testing.T) {
+	db := freshDB(t)
+	a := insertUser(t, db, "req@example.com", "Req")
+	b := insertUser(t, db, "addr@example.com", "Addr")
+	repo := friend.NewRepository(db)
+	ctx := context.Background()
+
+	id := uuid.New()
+	require.NoError(t, repo.CreateFriendship(ctx, &models.Friendship{
+		ID: id, RequesterID: a.ID, AddresseeID: b.ID, Status: models.FriendshipPending,
+	}))
+
+	// Only the addressee may accept.
+	n, err := repo.AcceptFriendship(ctx, id, a.ID, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, int64(0), n, "requester must not be able to accept")
+
+	// Addressee accepts: exactly one row changes.
+	n, err = repo.AcceptFriendship(ctx, id, b.ID, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, int64(1), n)
+
+	// A second accept is a no-op because the row is no longer pending — this
+	// is the race-loser path.
+	n, err = repo.AcceptFriendship(ctx, id, b.ID, time.Now())
+	require.NoError(t, err)
+	require.Equal(t, int64(0), n, "accepting an already-accepted row must affect 0 rows")
 }
 
 func TestFriendRepo_SelfFriendshipRejected(t *testing.T) {

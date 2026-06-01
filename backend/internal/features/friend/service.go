@@ -19,7 +19,7 @@ type store interface {
 	GetFriendship(ctx context.Context, a, b uuid.UUID) (*models.Friendship, error)
 	GetFriendshipByID(ctx context.Context, id uuid.UUID) (*models.Friendship, error)
 	CreateFriendship(ctx context.Context, f *models.Friendship) error
-	AcceptFriendship(ctx context.Context, id uuid.UUID, at time.Time) error
+	AcceptFriendship(ctx context.Context, id, addresseeID uuid.UUID, at time.Time) (int64, error)
 	DeleteFriendship(ctx context.Context, id uuid.UUID) error
 	DeleteFriendshipBetween(ctx context.Context, a, b uuid.UUID) (int64, error)
 	ListAcceptedFriendships(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
@@ -107,8 +107,16 @@ func (s *Service) AcceptRequest(ctx context.Context, userID, requestID uuid.UUID
 	if err != nil {
 		return err
 	}
-	if err := s.store.AcceptFriendship(ctx, f.ID, time.Now()); err != nil {
+	// Compare-and-set: only flip the row if it is still pending and addressed
+	// to this user. This closes the TOCTOU between the load above and the
+	// update — a concurrent accept/reject/cancel makes RowsAffected 0 rather
+	// than letting two operations both "succeed".
+	n, err := s.store.AcceptFriendship(ctx, f.ID, userID, time.Now())
+	if err != nil {
 		return httperr.Internal("could not accept request").Wrap(err)
+	}
+	if n == 0 {
+		return httperr.Conflict("not_pending", "this request is no longer pending")
 	}
 	s.cache.InvalidatePair(ctx, f.RequesterID, f.AddresseeID)
 	return nil
