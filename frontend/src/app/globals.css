@@ -9,7 +9,7 @@
   --accent-press: #2257e0;
   --danger: #e5484d;
   --ok: #2baa6b;
-  --radius: 10px;
+  --radius: 16px;
   --sidebar-w: 240px;
   --bottombar-h: 60px;
 
@@ -359,11 +359,14 @@ button.brand {
 
 .person .name {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .person .email {
   color: var(--muted);
   font-size: 13px;
+  /* Long handles/emails (no spaces) must break instead of widening the row. */
+  overflow-wrap: anywhere;
 }
 
 .actions {
@@ -524,6 +527,8 @@ select option:checked {
   left: 0;
   width: 100%;
   min-width: max-content;
+  /* Never let the panel spill past the viewport on a narrow phone. */
+  max-width: calc(100vw - 24px);
   max-height: 280px;
   overflow-y: auto;
   margin: 0;
@@ -586,7 +591,7 @@ button {
   background: var(--panel-2);
   color: var(--text);
   padding: 8px 14px;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   transition:
     background 0.12s ease,
@@ -608,20 +613,20 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--grad);
+  background: linear-gradient(135deg, var(--pine), var(--bluesky));
   border: none;
   color: #fff;
   width: 100%;
   padding: 11px;
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(52, 103, 92, 0.22);
+  box-shadow: 0 6px 18px rgba(76, 181, 245, 0.28);
   transition:
     transform 0.12s ease,
     box-shadow 0.2s ease;
 }
 
 button.primary:hover {
-  box-shadow: 0 6px 22px rgba(52, 103, 92, 0.3);
+  box-shadow: 0 8px 26px rgba(76, 181, 245, 0.4);
 }
 
 button.danger {
@@ -1033,5 +1038,37 @@ button.ghost:hover {
     position: absolute;
     top: 4px;
     margin-left: 18px;
+  }
+
+  /* iOS Safari auto-zooms when a focused field's font is < 16px; the page is
+     then left zoomed and horizontally scrollable (reads as "broken layout").
+     Keeping form fields at 16px prevents that zoom entirely. */
+  input,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Roomier tap targets on touch. */
+  button {
+    padding: 10px 14px;
+  }
+  button.primary {
+    padding: 13px;
+  }
+
+  /* The topbar carries brand + name + language + logout; let it wrap and keep
+     the long display name from pushing the row past the screen edge. */
+  .topbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .topbar .actions {
+    min-width: 0;
+  }
+  .topbar .actions .muted {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 38vw;
   }
 }
