@@ -1,0 +1,75 @@
+name: Deploy
+
+# Continuous delivery: on every push to main, build both images, run DB
+# migrations, then deploy backend and frontend to Cloud Run. Authenticates to
+# GCP with keyless Workload Identity Federation (no long-lived JSON key).
+#
+# One-time setup (GCP side + repo config) is documented in
+# docs/CD_GITHUB_ACTIONS.ja.md. The Cloud Run services and the chains-migrate
+# job must already exist (created during the initial manual deploy); this
+# workflow only updates their image and (for the frontend) the API_ORIGIN env.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Never run two deploys against main at once; let an in-flight one finish.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+jobs:
+  deploy:
+    name: build + migrate + deploy
+    runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      AR: ${{ vars.GCP_AR_REPO }} # e.g. asia-northeast1-docker.pkg.dev/<project>/chains
+      API_ORIGIN: ${{ vars.API_ORIGIN }} # backend URL, e.g. https://chains-xxxx.asia-northeast1.run.app
+      BACKEND_SERVICE: chains-backend
+      FRONTEND_SERVICE: chains-frontend
+      MIGRATE_JOB: chains-migrate
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build images (Cloud Build)
+        run: |
+          set -euo pipefail
+          gcloud builds submit backend  --tag "$AR/backend:$GITHUB_SHA"  --project "$PROJECT_ID"
+          # Frontend is built WITHOUT NEXT_PUBLIC_API_BASE_URL so the client uses
+          # a same-origin "/api" base; the Next server proxies it via API_ORIGIN.
+          gcloud builds submit frontend --tag "$AR/frontend:$GITHUB_SHA" --project "$PROJECT_ID"
+
+      - name: Run DB migrations
+        run: |
+          set -euo pipefail
+          gcloud run jobs update "$MIGRATE_JOB" \
+            --image "$AR/backend:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID"
+          gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --project "$PROJECT_ID" --wait
+
+      - name: Deploy backend
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$BACKEND_SERVICE" \
+            --image "$AR/backend:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID"
+
+      - name: Deploy frontend
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$FRONTEND_SERVICE" \
+            --image "$AR/frontend:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID" \
+            --update-env-vars "API_ORIGIN=$API_ORIGIN"
