@@ -50,7 +50,7 @@ func (h *Handler) SendRequest(c echo.Context) error {
 	if err := c.Validate(&in); err != nil {
 		return err
 	}
-	resp, err := h.svc.SendRequest(c.Request().Context(), userID, in.AddresseeID)
+	resp, err := h.svc.SendRequest(c.Request().Context(), userID, in.AddresseeID, in.Message)
 	if err != nil {
 		return err
 	}

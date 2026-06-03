@@ -6,9 +6,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Guard } from "@/components/Guard";
 import { ProfileView } from "@/components/ProfileView";
+import { AddFriendDialog } from "@/components/AddFriendDialog";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
-import { getProfileByUsername, sendRequest, useFriends } from "@/lib/hooks";
+import { getProfileByUsername, useFriends } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
 import { useI18n } from "@/lib/i18n";
 import type { PublicProfile } from "@/lib/types";
@@ -35,23 +36,10 @@ function AddByUsername() {
   );
 
   const [requested, setRequested] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
 
   const isSelf = !!data && user?.id === data.id;
   const isFriend = !!data && friends.some((f) => f.user.id === data.id);
-
-  async function onAdd() {
-    if (!data) return;
-    setActionError(null);
-    try {
-      await sendRequest(data.id);
-      setRequested(true);
-    } catch (err) {
-      setActionError(
-        err instanceof ApiError ? err.message : t.common.couldNotSend,
-      );
-    }
-  }
 
   return (
     <div className="container center-narrow">
@@ -90,17 +78,27 @@ function AddByUsername() {
                   <Link href="/friends">{t.add.backToChainsPlain}</Link>
                 </div>
               ) : (
-                <>
-                  <button className="primary" onClick={onAdd} style={{ width: "auto" }}>
-                    {t.common.addFriend}
-                  </button>
-                  {actionError ? <p className="error">{actionError}</p> : null}
-                </>
+                <button
+                  className="primary"
+                  onClick={() => setShowDialog(true)}
+                  style={{ width: "auto" }}
+                >
+                  {t.common.addFriend}
+                </button>
               )
             }
           />
         )}
       </div>
+
+      {showDialog && data ? (
+        <AddFriendDialog
+          addresseeId={data.id}
+          displayName={data.display_name}
+          onClose={() => setShowDialog(false)}
+          onSent={() => setRequested(true)}
+        />
+      ) : null}
     </div>
   );
 }

@@ -421,6 +421,7 @@ function RequestsTab() {
               <Person
                 key={r.request_id}
                 user={r.user}
+                note={r.message}
                 arrow="in"
                 actions={
                   <>

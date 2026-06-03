@@ -3,8 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { Person } from "./Person";
 import { Select } from "./Select";
+import { AddFriendDialog } from "./AddFriendDialog";
 import { ApiError } from "@/lib/api";
-import { searchUsers, sendRequest } from "@/lib/hooks";
+import { searchUsers } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { useReveal, useStagger } from "@/lib/anim";
 import { useI18n } from "@/lib/i18n";
@@ -16,6 +17,8 @@ export function FindPeople() {
   const [language, setLanguage] = useState("");
   const [results, setResults] = useState<UserSummary[] | null>(null);
   const [sent, setSent] = useState<Record<string, boolean>>({});
+  // The user whose "Add friend" dialog is currently open, if any.
+  const [dialogUser, setDialogUser] = useState<UserSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const cardRef = useReveal<HTMLDivElement>();
@@ -40,16 +43,6 @@ export function FindPeople() {
       setError(err instanceof ApiError ? err.message : t.find.errSearchFailed);
     } finally {
       setSearching(false);
-    }
-  }
-
-  async function onSend(userId: string) {
-    setError(null);
-    try {
-      await sendRequest(userId);
-      setSent((s) => ({ ...s, [userId]: true }));
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : t.common.couldNotSend);
     }
   }
 
@@ -89,7 +82,7 @@ export function FindPeople() {
               user={u}
               actions={
                 <button
-                  onClick={() => onSend(u.id)}
+                  onClick={() => setDialogUser(u)}
                   disabled={sent[u.id]}
                 >
                   {sent[u.id] ? t.common.requested : t.common.addFriend}
@@ -99,6 +92,17 @@ export function FindPeople() {
           ))}
         </div>
       )}
+
+      {dialogUser ? (
+        <AddFriendDialog
+          addresseeId={dialogUser.id}
+          displayName={dialogUser.display_name}
+          onClose={() => setDialogUser(null)}
+          onSent={() =>
+            setSent((s) => ({ ...s, [dialogUser.id]: true }))
+          }
+        />
+      ) : null}
     </div>
   );
 }

@@ -196,14 +196,14 @@ func seedFriendship(fs *fakeStore, requester, addressee uuid.UUID, status models
 func TestSendRequest_Self(t *testing.T) {
 	a := uuid.New()
 	svc, _ := newTestService(t, newFakeStore(a))
-	_, err := svc.SendRequest(context.Background(), a, a)
+	_, err := svc.SendRequest(context.Background(), a, a, "")
 	assertHTTPStatus(t, err, 400, "self_request")
 }
 
 func TestSendRequest_UserNotFound(t *testing.T) {
 	a := uuid.New()
 	svc, _ := newTestService(t, newFakeStore(a))
-	_, err := svc.SendRequest(context.Background(), a, uuid.New())
+	_, err := svc.SendRequest(context.Background(), a, uuid.New(), "")
 	assertHTTPStatus(t, err, 404, "user_not_found")
 }
 
@@ -212,7 +212,7 @@ func TestSendRequest_Blocked(t *testing.T) {
 	fs := newFakeStore(a, b)
 	fs.blocks[[2]uuid.UUID{b, a}] = true // b blocked a
 	svc, _ := newTestService(t, fs)
-	_, err := svc.SendRequest(context.Background(), a, b)
+	_, err := svc.SendRequest(context.Background(), a, b, "")
 	assertHTTPStatus(t, err, 403, "blocked")
 }
 
@@ -221,7 +221,7 @@ func TestSendRequest_AlreadyFriends(t *testing.T) {
 	fs := newFakeStore(a, b)
 	seedFriendship(fs, a, b, models.FriendshipAccepted)
 	svc, _ := newTestService(t, fs)
-	_, err := svc.SendRequest(context.Background(), a, b)
+	_, err := svc.SendRequest(context.Background(), a, b, "")
 	assertHTTPStatus(t, err, 409, "already_friends")
 }
 
@@ -230,7 +230,7 @@ func TestSendRequest_DuplicateOutgoing(t *testing.T) {
 	fs := newFakeStore(a, b)
 	seedFriendship(fs, a, b, models.FriendshipPending)
 	svc, _ := newTestService(t, fs)
-	_, err := svc.SendRequest(context.Background(), a, b)
+	_, err := svc.SendRequest(context.Background(), a, b, "")
 	assertHTTPStatus(t, err, 409, "request_exists")
 }
 
@@ -239,7 +239,7 @@ func TestSendRequest_IncomingExists(t *testing.T) {
 	fs := newFakeStore(a, b)
 	seedFriendship(fs, b, a, models.FriendshipPending) // b already requested a
 	svc, _ := newTestService(t, fs)
-	_, err := svc.SendRequest(context.Background(), a, b)
+	_, err := svc.SendRequest(context.Background(), a, b, "")
 	assertHTTPStatus(t, err, 409, "incoming_request_exists")
 }
 
@@ -252,10 +252,14 @@ func TestSendRequest_Success(t *testing.T) {
 	fc.SetFriendList(context.Background(), a, []FriendSummary{})
 	fc.SetIncomingCount(context.Background(), b, 0)
 
-	resp, err := svc.SendRequest(context.Background(), a, b)
+	resp, err := svc.SendRequest(context.Background(), a, b, "  let's connect  ")
 	require.NoError(t, err)
 	require.Equal(t, b, resp.User.ID)
 	require.Len(t, fs.friendships, 1)
+	// The message is trimmed and persisted on the new pending row.
+	for _, f := range fs.friendships {
+		require.Equal(t, "let's connect", f.Message)
+	}
 
 	_, ok := fc.GetFriendList(context.Background(), a)
 	require.False(t, ok, "sender friend list cache should be invalidated")

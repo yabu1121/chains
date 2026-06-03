@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { ProfileView } from "./ProfileView";
+import { AddFriendDialog } from "./AddFriendDialog";
 import { useAuth } from "@/lib/auth";
-import { ApiError } from "@/lib/api";
-import { getProfile, sendRequest, useFriends } from "@/lib/hooks";
+import { getProfile, useFriends } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
 import { useI18n } from "@/lib/i18n";
 import type { PublicProfile } from "@/lib/types";
@@ -31,7 +31,7 @@ export function ProfileModal({
   );
 
   const [requested, setRequested] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
 
   const overlayRef = useReveal<HTMLDivElement>({ y: 0, duration: 250 });
   const cardRef = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 360 });
@@ -44,16 +44,6 @@ export function ProfileModal({
   // would otherwise offset and clip it.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
-  async function onAdd() {
-    setActionError(null);
-    try {
-      await sendRequest(userId);
-      setRequested(true);
-    } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : t.common.couldNotSend);
-    }
-  }
 
   if (!mounted) return null;
 
@@ -92,17 +82,26 @@ export function ProfileModal({
               ) : isFriend ? (
                 <span style={{ color: "var(--ok)" }}>{t.profileModal.youAreFriends}</span>
               ) : (
-                <>
-                  <button onClick={onAdd} disabled={requested}>
-                    {requested ? t.common.requested : t.common.addFriend}
-                  </button>
-                  {actionError ? <p className="error">{actionError}</p> : null}
-                </>
+                <button
+                  onClick={() => setShowDialog(true)}
+                  disabled={requested}
+                >
+                  {requested ? t.common.requested : t.common.addFriend}
+                </button>
               )
             }
           />
         )}
       </div>
+
+      {showDialog && data ? (
+        <AddFriendDialog
+          addresseeId={userId}
+          displayName={data.display_name}
+          onClose={() => setShowDialog(false)}
+          onSent={() => setRequested(true)}
+        />
+      ) : null}
     </div>,
     document.body,
   );
