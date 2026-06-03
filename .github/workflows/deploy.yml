@@ -50,9 +50,10 @@ jobs:
       - name: Build images
         run: |
           set -euo pipefail
-          # Backend: plain Dockerfile build.
-          gcloud builds submit backend \
-            --tag "$AR/chains-backend:$GITHUB_SHA" --project "$PROJECT_ID"
+          # Backend: build via config (CLOUD_LOGGING_ONLY, so the non-Viewer
+          # deploy SA doesn't fail trying to stream the default logs bucket).
+          gcloud builds submit backend --config backend/cloudbuild.yaml \
+            --substitutions "_IMG=$AR/chains-backend:$GITHUB_SHA" --project "$PROJECT_ID"
           # Frontend: API_ORIGIN must be a build arg (rewrites bake at build time).
           gcloud builds submit frontend --config frontend/cloudbuild.yaml \
             --substitutions "_API_ORIGIN=$API_ORIGIN,_IMG=$AR/chains-front:$GITHUB_SHA" \

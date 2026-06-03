@@ -1,0 +1,13 @@
+# Builds the backend image. options.logging=CLOUD_LOGGING_ONLY so the build
+# does not write to / stream the default GCS log bucket — the deploy service
+# account is not a project Viewer/Owner, and streaming that bucket would fail
+# in CI. Invoke with:
+#   gcloud builds submit backend --config backend/cloudbuild.yaml \
+#     --substitutions _IMG=<image:tag>
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_IMG}', '.']
+images:
+  - '${_IMG}'
+options:
+  logging: CLOUD_LOGGING_ONLY
