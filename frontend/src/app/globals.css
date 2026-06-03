@@ -591,7 +591,7 @@ button {
   background: var(--panel-2);
   color: var(--text);
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: 8px;
   cursor: pointer;
   transition:
     background 0.12s ease,
@@ -613,20 +613,20 @@ button:disabled {
 }
 
 button.primary {
-  background: linear-gradient(135deg, var(--pine), var(--bluesky));
+  background: var(--grad);
   border: none;
   color: #fff;
   width: 100%;
   padding: 11px;
   font-weight: 600;
-  box-shadow: 0 6px 18px rgba(76, 181, 245, 0.28);
+  box-shadow: 0 4px 16px rgba(52, 103, 92, 0.22);
   transition:
     transform 0.12s ease,
     box-shadow 0.2s ease;
 }
 
 button.primary:hover {
-  box-shadow: 0 8px 26px rgba(76, 181, 245, 0.4);
+  box-shadow: 0 6px 22px rgba(52, 103, 92, 0.3);
 }
 
 button.danger {
