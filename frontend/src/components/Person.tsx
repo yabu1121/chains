@@ -6,12 +6,16 @@ import { RequestArrow } from "./RequestArrow";
 export function Person({
   user,
   subtitle,
+  note,
   actions,
   onSelect,
   arrow,
 }: {
   user: UserSummary;
   subtitle?: string;
+  // Optional free-text note shown under the handle (e.g. a friend request
+  // message). Rendered only when non-empty.
+  note?: string;
   actions?: ReactNode;
   onSelect?: () => void;
   // When set, render an animated dashed "→" between the person and the
@@ -40,6 +44,19 @@ export function Person({
         <span style={{ minWidth: 0 }}>
           <div className="name">{user.display_name}</div>
           <div className="email">{subtitle ?? `@${user.username}`}</div>
+          {note ? (
+            <div
+              className="muted"
+              style={{
+                fontSize: 13,
+                marginTop: 2,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            >
+              “{note}”
+            </div>
+          ) : null}
         </span>
       </div>
       {arrow ? <RequestArrow dir={arrow} /> : null}

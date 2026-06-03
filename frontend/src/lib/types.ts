@@ -72,6 +72,7 @@ export interface FriendSummary {
 export interface RequestSummary {
   request_id: string;
   user: UserSummary;
+  message: string;
   created_at: string;
 }
 

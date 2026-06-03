@@ -27,15 +27,19 @@ type FriendSummary struct {
 }
 
 // RequestSummary is one pending friend request; User is the other party.
+// Message is the optional note the requester attached (empty when none).
 type RequestSummary struct {
 	RequestID uuid.UUID   `json:"request_id"`
 	User      UserSummary `json:"user"`
+	Message   string      `json:"message"`
 	CreatedAt time.Time   `json:"created_at"`
 }
 
-// SendRequestInput is the body for sending a friend request.
+// SendRequestInput is the body for sending a friend request. Message is an
+// optional short note (max 150 characters).
 type SendRequestInput struct {
 	AddresseeID uuid.UUID `json:"addressee_id" validate:"required"`
+	Message     string    `json:"message" validate:"max=150"`
 }
 
 // BlockInput is the body for blocking a user.
