@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function RegisterPage() {
+  const { t } = useI18n();
   const { user, loading, register } = useAuth();
   const router = useRouter();
   const brandRef = useReveal<HTMLHeadingElement>({ scale: 0.9, y: 0 });
@@ -16,6 +19,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,13 +29,17 @@ export default function RegisterPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!agreed) {
+      setError(t.register.agreeError);
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
       await register(email, username, password, displayName);
       router.replace("/friends");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : t.common.somethingWrong);
     } finally {
       setSubmitting(false);
     }
@@ -47,8 +55,8 @@ export default function RegisterPage() {
         ⛓ chains
       </h1>
       <form ref={cardRef} className="card" onSubmit={onSubmit}>
-        <h2 className="section-title">Create account</h2>
-        <label htmlFor="name">Display name</label>
+        <h2 className="section-title">{t.register.title}</h2>
+        <label htmlFor="name">{t.register.displayName}</label>
         <input
           id="name"
           value={displayName}
@@ -56,7 +64,7 @@ export default function RegisterPage() {
           required
           maxLength={50}
         />
-        <label htmlFor="username">Username (handle for others to find you)</label>
+        <label htmlFor="username">{t.register.username}</label>
         <input
           id="username"
           value={username}
@@ -65,9 +73,9 @@ export default function RegisterPage() {
           minLength={3}
           maxLength={30}
           pattern="[a-z0-9_]+"
-          placeholder="e.g. taro_yamada"
+          placeholder={t.register.usernamePlaceholder}
         />
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{t.register.email}</label>
         <input
           id="email"
           type="email"
@@ -75,7 +83,7 @@ export default function RegisterPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <label htmlFor="password">Password (min 8 characters)</label>
+        <label htmlFor="password">{t.register.password}</label>
         <input
           id="password"
           type="password"
@@ -84,19 +92,52 @@ export default function RegisterPage() {
           required
           minLength={8}
         />
+        <label
+          htmlFor="agree"
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 8,
+            marginTop: 16,
+            cursor: "pointer",
+          }}
+        >
+          <input
+            id="agree"
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            style={{ width: "auto", marginTop: 3 }}
+          />
+          <span>
+            {t.register.agreePre}
+            <Link href="/terms" target="_blank">
+              {t.register.agreeTermsLink}
+            </Link>
+            {t.register.agreePost}
+          </span>
+        </label>
         <div style={{ marginTop: 20 }}>
-          <button className="primary" type="submit" disabled={submitting}>
-            {submitting ? "Creating…" : "Create account"}
+          <button
+            className="primary"
+            type="submit"
+            disabled={submitting || !agreed}
+          >
+            {submitting ? t.register.submitting : t.register.submit}
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
-          Already have an account? <Link href="/login">Log in</Link>
+          {t.register.haveAccount} <Link href="/login">{t.register.login}</Link>
         </p>
         <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
-          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy policy</Link>
+          <Link href="/terms">{t.legal.terms}</Link> ·{" "}
+          <Link href="/privacy">{t.legal.privacy}</Link>
         </p>
       </form>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+        <LanguageSwitcher />
+      </div>
     </div>
   );
 }

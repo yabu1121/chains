@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getProfile, sendRequest, useFriends } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 import type { PublicProfile } from "@/lib/types";
 
 export function ProfileModal({
@@ -21,6 +22,7 @@ export function ProfileModal({
   // that closes the modal and jumps to the editor.
   onEditProfile?: () => void;
 }) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { friends } = useFriends();
   const { data, error, isLoading } = useSWR<PublicProfile>(
@@ -49,7 +51,7 @@ export function ProfileModal({
       await sendRequest(userId);
       setRequested(true);
     } catch (err) {
-      setActionError(err instanceof ApiError ? err.message : "Could not send request");
+      setActionError(err instanceof ApiError ? err.message : t.common.couldNotSend);
     }
   }
 
@@ -62,14 +64,14 @@ export function ProfileModal({
         onClick={(e) => e.stopPropagation()}
         ref={cardRef}
       >
-        <button className="modal-close" onClick={onClose} aria-label="Close">
+        <button className="modal-close" onClick={onClose} aria-label={t.common.close}>
           ×
         </button>
 
         {error ? (
-          <p className="error">Could not load this profile.</p>
+          <p className="error">{t.profileModal.couldNotLoad}</p>
         ) : isLoading || !data ? (
-          <p className="empty">Loading…</p>
+          <p className="empty">{t.common.loading}</p>
         ) : (
           <ProfileView
             profile={data}
@@ -82,17 +84,17 @@ export function ProfileModal({
                       onEditProfile();
                     }}
                   >
-                    Edit profile
+                    {t.profileModal.editProfile}
                   </button>
                 ) : (
-                  <span className="muted">This is you.</span>
+                  <span className="muted">{t.profileModal.thisIsYou}</span>
                 )
               ) : isFriend ? (
-                <span style={{ color: "var(--ok)" }}>You are friends ✓</span>
+                <span style={{ color: "var(--ok)" }}>{t.profileModal.youAreFriends}</span>
               ) : (
                 <>
                   <button onClick={onAdd} disabled={requested}>
-                    {requested ? "Requested" : "Add friend"}
+                    {requested ? t.common.requested : t.common.addFriend}
                   </button>
                   {actionError ? <p className="error">{actionError}</p> : null}
                 </>

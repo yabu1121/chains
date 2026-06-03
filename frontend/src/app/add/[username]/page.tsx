@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getProfileByUsername, sendRequest, useFriends } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 import type { PublicProfile } from "@/lib/types";
 
 export default function AddPage() {
@@ -21,6 +22,7 @@ export default function AddPage() {
 }
 
 function AddByUsername() {
+  const { t } = useI18n();
   const params = useParams<{ username: string }>();
   const username = params.username;
   const { user } = useAuth();
@@ -46,7 +48,7 @@ function AddByUsername() {
       setRequested(true);
     } catch (err) {
       setActionError(
-        err instanceof ApiError ? err.message : "Could not send request",
+        err instanceof ApiError ? err.message : t.common.couldNotSend,
       );
     }
   }
@@ -61,36 +63,36 @@ function AddByUsername() {
           <>
             <p className="error">
               {error instanceof ApiError && error.status === 404
-                ? "We couldn't find that person."
-                : "Could not load this profile."}
+                ? t.add.notFound
+                : t.add.couldNotLoad}
             </p>
             <p style={{ marginTop: 12 }}>
-              <Link href="/friends">← Back to chains</Link>
+              <Link href="/friends">{t.add.backToChains}</Link>
             </p>
           </>
         ) : isLoading || !data ? (
-          <p className="empty">Loading…</p>
+          <p className="empty">{t.common.loading}</p>
         ) : (
           <ProfileView
             profile={data}
             actions={
               isSelf ? (
-                <Link href="/friends">This is your own code — open chains</Link>
+                <Link href="/friends">{t.add.ownCode}</Link>
               ) : isFriend ? (
                 <span style={{ color: "var(--ok)" }}>
-                  You are already friends ✓
+                  {t.add.alreadyFriends}
                 </span>
               ) : requested ? (
                 <div>
                   <p style={{ color: "var(--ok)", margin: "0 0 8px" }}>
-                    Friend request sent ✓
+                    {t.add.requestSent}
                   </p>
-                  <Link href="/friends">Back to chains</Link>
+                  <Link href="/friends">{t.add.backToChainsPlain}</Link>
                 </div>
               ) : (
                 <>
                   <button className="primary" onClick={onAdd} style={{ width: "auto" }}>
-                    Add friend
+                    {t.common.addFriend}
                   </button>
                   {actionError ? <p className="error">{actionError}</p> : null}
                 </>

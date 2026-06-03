@@ -1,7 +1,10 @@
+"use client";
+
 import type { ReactNode } from "react";
 import type { PublicProfile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { safeHttpUrl } from "@/lib/url";
+import { useI18n } from "@/lib/i18n";
 
 type Platform = "X" | "GitHub" | "Zenn" | "LinkedIn" | "Portfolio";
 
@@ -80,13 +83,16 @@ interface DetailRow {
 }
 
 /** Builds the labelled detail rows: age, birth date, joined date. */
-function detailRows(p: PublicProfile): DetailRow[] {
+function detailRows(
+  p: PublicProfile,
+  labels: { age: string; born: string; joined: string },
+): DetailRow[] {
   const rows: DetailRow[] = [];
-  if (p.age != null) rows.push({ label: "Age", value: String(p.age) });
+  if (p.age != null) rows.push({ label: labels.age, value: String(p.age) });
   if (p.birth_date) {
     const d = new Date(p.birth_date);
     rows.push({
-      label: "Born",
+      label: labels.born,
       value: d.toLocaleDateString(undefined, {
         year: "numeric",
         month: "long",
@@ -97,7 +103,7 @@ function detailRows(p: PublicProfile): DetailRow[] {
   if (p.created_at) {
     const d = new Date(p.created_at);
     rows.push({
-      label: "Joined",
+      label: labels.joined,
       value: d.toLocaleDateString(undefined, { year: "numeric", month: "long" }),
     });
   }
@@ -111,8 +117,13 @@ export function ProfileView({
   profile: PublicProfile;
   actions?: ReactNode;
 }) {
+  const { t } = useI18n();
   const items = links(profile);
-  const details = detailRows(profile);
+  const details = detailRows(profile, {
+    age: t.profileView.age,
+    born: t.profileView.born,
+    joined: t.profileView.joined,
+  });
   return (
     <div className="profile-view">
       <div className="pv-header">
@@ -132,7 +143,7 @@ export function ProfileView({
 
       {details.length > 0 ? (
         <div className="pv-section">
-          <div className="section-title">Details</div>
+          <div className="section-title">{t.profileView.details}</div>
           <dl className="pv-details">
             {details.map((d) => (
               <div className="pv-detail-row" key={d.label}>
@@ -146,7 +157,7 @@ export function ProfileView({
 
       {profile.languages.length > 0 ? (
         <div className="pv-section">
-          <div className="section-title">Languages</div>
+          <div className="section-title">{t.profileView.languages}</div>
           <div className="pv-chips">
             {profile.languages.map((lang) => (
               <span className="pv-chip" key={lang}>
@@ -158,7 +169,7 @@ export function ProfileView({
       ) : null}
 
       <div className="pv-section">
-        <div className="section-title">Links</div>
+        <div className="section-title">{t.profileView.links}</div>
         {items.length > 0 ? (
           <div className="pv-links">
             {items.map((l) => (
@@ -181,7 +192,7 @@ export function ProfileView({
             ))}
           </div>
         ) : (
-          <p className="empty">No links to show.</p>
+          <p className="empty">{t.profileView.noLinks}</p>
         )}
       </div>
 

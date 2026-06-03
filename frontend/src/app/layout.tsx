@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { AuthProvider } from "@/lib/auth";
+import { I18nProvider } from "@/lib/i18n";
 import { ChainBackground } from "@/components/ChainBackground";
 import "./globals.css";
 
@@ -20,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const apiBaseUrl =
     process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
   return (
-    <html lang="en">
+    <html lang="ja">
       <body>
         {/* Runs before the app bundle, so window config is ready for api.ts. */}
         <script
@@ -28,10 +29,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: `window.__CHAINS_CONFIG__=${JSON.stringify({ apiBaseUrl })}`,
           }}
         />
-        <AuthProvider>
-          <ChainBackground />
-          <div className="app-root">{children}</div>
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <ChainBackground />
+            <div className="app-root">{children}</div>
+          </AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

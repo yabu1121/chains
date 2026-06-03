@@ -7,9 +7,11 @@ import { ApiError } from "@/lib/api";
 import { searchUsers, sendRequest } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { useReveal, useStagger } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 import type { UserSummary } from "@/lib/types";
 
 export function FindPeople() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [language, setLanguage] = useState("");
   const [results, setResults] = useState<UserSummary[] | null>(null);
@@ -24,18 +26,18 @@ export function FindPeople() {
     setError(null);
     const q = query.trim();
     if (!q && !language) {
-      setError("Type a name or pick a language");
+      setError(t.find.errTypeNameOrLang);
       return;
     }
     if (q && q.length < 2) {
-      setError("Type at least 2 characters");
+      setError(t.find.errMin2);
       return;
     }
     setSearching(true);
     try {
       setResults(await searchUsers(q, language));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Search failed");
+      setError(err instanceof ApiError ? err.message : t.find.errSearchFailed);
     } finally {
       setSearching(false);
     }
@@ -47,16 +49,16 @@ export function FindPeople() {
       await sendRequest(userId);
       setSent((s) => ({ ...s, [userId]: true }));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not send request");
+      setError(err instanceof ApiError ? err.message : t.common.couldNotSend);
     }
   }
 
   return (
     <div className="card" ref={cardRef}>
-      <h2 className="section-title">Find people</h2>
+      <h2 className="section-title">{t.find.title}</h2>
       <form onSubmit={onSearch} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <input
-          placeholder="Search by name or email"
+          placeholder={t.find.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={{ flex: 1, minWidth: 160 }}
@@ -64,21 +66,21 @@ export function FindPeople() {
         <Select
           value={language}
           onChange={setLanguage}
-          ariaLabel="Filter by language"
+          ariaLabel={t.find.filterByLanguage}
           options={[
-            { value: "", label: "Any language" },
+            { value: "", label: t.find.anyLanguage },
             ...PROGRAMMING_LANGUAGES.map((lang) => ({ value: lang, label: lang })),
           ]}
         />
         <button type="submit" disabled={searching}>
-          {searching ? "…" : "Search"}
+          {searching ? "…" : t.find.search}
         </button>
       </form>
 
       {error ? <p className="error">{error}</p> : null}
 
       {results === null ? null : results.length === 0 ? (
-        <p className="empty">No users found.</p>
+        <p className="empty">{t.find.noUsers}</p>
       ) : (
         <div style={{ marginTop: 8 }} ref={resultsRef}>
           {results.map((u) => (
@@ -90,7 +92,7 @@ export function FindPeople() {
                   onClick={() => onSend(u.id)}
                   disabled={sent[u.id]}
                 >
-                  {sent[u.id] ? "Requested" : "Add friend"}
+                  {sent[u.id] ? t.common.requested : t.common.addFriend}
                 </button>
               }
             />
