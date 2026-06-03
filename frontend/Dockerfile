@@ -15,6 +15,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # --build-arg NEXT_PUBLIC_API_BASE_URL=https://api.example.com).
 ARG NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL}
+# next.config.mjs rewrites() is evaluated at build time (output: "standalone"
+# bakes it into the route manifest), so API_ORIGIN must be present here for the
+# /api -> backend proxy to take effect. Supply with
+# --build-arg API_ORIGIN=https://<backend-host>.
+ARG API_ORIGIN
+ENV API_ORIGIN=${API_ORIGIN}
 # Produces .next/standalone (output: "standalone" in next.config.mjs).
 RUN npm run build
 
