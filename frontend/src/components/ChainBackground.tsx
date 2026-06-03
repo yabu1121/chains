@@ -93,7 +93,15 @@ export function ChainBackground() {
 
   useEffect(() => {
     const root = rootRef.current;
-    if (!root || prefersReducedMotion()) return;
+    // Skip the looping/parallax animations on reduced-motion and on mobile /
+    // touch devices: animating inside the SVG blur filter forces the whole
+    // filtered layer to re-rasterise every frame, which tanks the frame rate on
+    // mobile GPUs (and makes scrolling feel janky). Left static, the filter is
+    // painted once and cached, so the background stays cheap.
+    const lightweight =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 768px), (pointer: coarse)").matches;
+    if (!root || prefersReducedMotion() || lightweight) return;
 
     const lines = Array.from(root.querySelectorAll<SVGLineElement>(".cb-edge"));
     const stars = Array.from(root.querySelectorAll<SVGCircleElement>(".cb-star"));
