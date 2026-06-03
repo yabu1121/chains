@@ -93,6 +93,31 @@ export function NetworkGraph({
     focusedRef.current = false;
   }, [graph]);
 
+  // Mobile / touch: render fewer things and don't repaint continuously.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px), (pointer: coarse)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // Current visible graph-space rectangle (with margin), recomputed each frame
+  // in onRenderFramePre. Used to cull off-screen nodes/links so only the
+  // people around the current view are drawn — and it follows you as you pan.
+  const viewRef = useRef<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } | null>(null);
+  const inView = (n: { x?: number; y?: number }) => {
+    const v = viewRef.current;
+    if (!v || n.x == null || n.y == null) return true; // before first frame, show all
+    return n.x >= v.minX && n.x <= v.maxX && n.y >= v.minY && n.y <= v.maxY;
+  };
+
   // Preload avatar images so nodeCanvasObject can draw them. Keyed by user id;
   // each <img> carries its version in dataset.v so a changed avatar reloads.
   const imgCacheRef = useRef<Map<string, HTMLImageElement>>(new Map());
@@ -159,7 +184,10 @@ export function NetworkGraph({
   // dashes flow; otherwise we let the graph idle. Held still for reduced motion.
   const reduce = prefersReducedMotion();
   const hasPending = data.links.some((l) => l.pending);
-  const animateEdges = hasPending && !reduce;
+  // On mobile, don't keep the canvas repainting for the marching-ants dashes:
+  // the continuous redraw is a big battery/FPS cost. The dashed arrow still
+  // renders (just held still), and autoPauseRedraw lets the graph idle.
+  const animateEdges = hasPending && !reduce && !isMobile;
 
   useEffect(() => {
     const cache = imgCacheRef.current;
@@ -275,6 +303,32 @@ export function NetworkGraph({
                 }}
                 onNodeClick={(node: GraphNode) => setSelectedId(node.id)}
                 autoPauseRedraw={!animateEdges}
+                // Before each frame, record the visible graph-space rectangle
+                // (plus a small margin) so node/link visibility can cull
+                // anything off-screen. Only what's around the current view is
+                // drawn, and it follows the camera as you pan/zoom.
+                onRenderFramePre={() => {
+                  const fg = fgRef.current;
+                  if (!fg || !size.width || !size.height) return;
+                  const tl = fg.screen2GraphCoords(0, 0);
+                  const br = fg.screen2GraphCoords(size.width, size.height);
+                  const mx = (br.x - tl.x) * 0.15;
+                  const my = (br.y - tl.y) * 0.15;
+                  viewRef.current = {
+                    minX: tl.x - mx,
+                    minY: tl.y - my,
+                    maxX: br.x + mx,
+                    maxY: br.y + my,
+                  };
+                }}
+                nodeVisibility={(n: GraphNode) => inView(n)}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                linkVisibility={(l: any) => {
+                  const s = l.source;
+                  const t = l.target;
+                  if (typeof s !== "object" || typeof t !== "object") return true;
+                  return inView(s) || inView(t);
+                }}
                 linkColor={(l: GraphLink) =>
                   l.pending ? COLORS.self : "rgba(104,112,131,0.35)"
                 }
