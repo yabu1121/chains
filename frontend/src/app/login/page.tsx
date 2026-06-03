@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 export default function LoginPage() {
+  const { t } = useI18n();
   const { user, loading, login } = useAuth();
   const router = useRouter();
   const brandRef = useReveal<HTMLHeadingElement>({ scale: 0.9, y: 0 });
@@ -29,7 +32,7 @@ export default function LoginPage() {
       await login(email, password);
       router.replace("/friends");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Something went wrong");
+      setError(err instanceof ApiError ? err.message : t.common.somethingWrong);
     } finally {
       setSubmitting(false);
     }
@@ -45,8 +48,8 @@ export default function LoginPage() {
         ⛓ chains
       </h1>
       <form ref={cardRef} className="card" onSubmit={onSubmit}>
-        <h2 className="section-title">Log in</h2>
-        <label htmlFor="email">Email</label>
+        <h2 className="section-title">{t.login.title}</h2>
+        <label htmlFor="email">{t.login.email}</label>
         <input
           id="email"
           type="email"
@@ -54,7 +57,7 @@ export default function LoginPage() {
           onChange={(e) => setEmail(e.target.value)}
           required
         />
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password">{t.login.password}</label>
         <input
           id="password"
           type="password"
@@ -64,17 +67,21 @@ export default function LoginPage() {
         />
         <div style={{ marginTop: 20 }}>
           <button className="primary" type="submit" disabled={submitting}>
-            {submitting ? "Logging in…" : "Log in"}
+            {submitting ? t.login.submitting : t.login.submit}
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
         <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
-          No account? <Link href="/register">Create one</Link>
+          {t.login.noAccount} <Link href="/register">{t.login.createOne}</Link>
         </p>
         <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
-          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy policy</Link>
+          <Link href="/terms">{t.legal.terms}</Link> ·{" "}
+          <Link href="/privacy">{t.legal.privacy}</Link>
         </p>
       </form>
+      <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+        <LanguageSwitcher />
+      </div>
     </div>
   );
 }

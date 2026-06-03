@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useAuth } from "@/lib/auth";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * Shows the signed-in user's personal QR code. It encodes a link to
@@ -11,6 +12,7 @@ import { useReveal } from "@/lib/anim";
  * and send a friend request — handy for swapping contacts in person.
  */
 export function QRInvite() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const cardRef = useReveal<HTMLDivElement>();
   // origin is only known in the browser; compute after mount to avoid an SSR
@@ -39,9 +41,9 @@ export function QRInvite() {
 
   return (
     <div className="card" ref={cardRef}>
-      <h2 className="section-title">Your QR code</h2>
+      <h2 className="section-title">{t.qr.title}</h2>
       <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
-        Have someone scan this with their camera to add you as a friend.
+        {t.qr.desc}
       </p>
       <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
         <div
@@ -79,7 +81,7 @@ export function QRInvite() {
           {origin ? `${origin}/add/${user.username}` : "…"}
         </span>
         <button type="button" onClick={copy} disabled={!link}>
-          {copied ? "Copied ✓" : "Copy link"}
+          {copied ? t.qr.copied : t.qr.copyLink}
         </button>
       </div>
     </div>

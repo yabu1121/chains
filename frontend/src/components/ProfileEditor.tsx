@@ -14,24 +14,20 @@ import { ApiError, deleteAccount, deleteAvatar, uploadAvatar } from "@/lib/api";
 import { getProfile, updateProfile, type ProfileInput } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 import type { PublicProfile, Visibility } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { AvatarCropper } from "./AvatarCropper";
 import { Select } from "./Select";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 // Cap on the *source* image the user picks. The cropper re-encodes to a small
 // square JPEG, so this can be generous; it only guards against absurd files.
 const MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 
-// Visibility levels offered for each account link, widening to narrowing.
-const VISIBILITY_OPTIONS = [
-  { value: "public", label: "Everyone" },
-  { value: "friends", label: "Friends only" },
-  { value: "private", label: "private" },
-];
-
 // The account-link fields, each paired with its visibility key. Driving the
-// link inputs from this list keeps each value and its selector in sync.
+// link inputs from this list keeps each value and its selector in sync. The
+// label is a dictionary key resolved against `t.editor` at render time.
 const LINK_FIELDS: {
   key: "x_handle" | "github_handle" | "zenn_handle" | "linkedin_url" | "portfolio_url";
   visKey:
@@ -40,14 +36,14 @@ const LINK_FIELDS: {
     | "zenn_handle_visibility"
     | "linkedin_url_visibility"
     | "portfolio_url_visibility";
-  label: string;
+  labelKey: "xHandle" | "githubHandle" | "zennHandle" | "linkedinUrl" | "portfolioUrl";
   placeholder: string;
 }[] = [
-  { key: "x_handle", visKey: "x_handle_visibility", label: "X handle (without @)", placeholder: "elonmusk" },
-  { key: "github_handle", visKey: "github_handle_visibility", label: "GitHub handle", placeholder: "torvalds" },
-  { key: "zenn_handle", visKey: "zenn_handle_visibility", label: "Zenn handle", placeholder: "catnose" },
-  { key: "linkedin_url", visKey: "linkedin_url_visibility", label: "LinkedIn URL", placeholder: "https://linkedin.com/in/…" },
-  { key: "portfolio_url", visKey: "portfolio_url_visibility", label: "Portfolio URL", placeholder: "https://example.com" },
+  { key: "x_handle", visKey: "x_handle_visibility", labelKey: "xHandle", placeholder: "elonmusk" },
+  { key: "github_handle", visKey: "github_handle_visibility", labelKey: "githubHandle", placeholder: "torvalds" },
+  { key: "zenn_handle", visKey: "zenn_handle_visibility", labelKey: "zennHandle", placeholder: "catnose" },
+  { key: "linkedin_url", visKey: "linkedin_url_visibility", labelKey: "linkedinUrl", placeholder: "https://linkedin.com/in/…" },
+  { key: "portfolio_url", visKey: "portfolio_url_visibility", labelKey: "portfolioUrl", placeholder: "https://example.com" },
 ];
 
 const EMPTY: ProfileInput = {
@@ -71,6 +67,13 @@ const EMPTY: ProfileInput = {
 };
 
 export function ProfileEditor() {
+  const { t } = useI18n();
+  // Visibility levels offered for each account link, widening to narrowing.
+  const VISIBILITY_OPTIONS = [
+    { value: "public", label: t.editor.visEveryone },
+    { value: "friends", label: t.editor.visFriends },
+    { value: "private", label: t.editor.visPrivate },
+  ];
   const { user, refreshUser, logout } = useAuth();
   const router = useRouter();
   const { data: profile, mutate } = useSWR<PublicProfile>(
@@ -97,7 +100,7 @@ export function ProfileEditor() {
       router.push("/login");
     } catch (err) {
       setDeleteError(
-        err instanceof ApiError ? err.message : "Could not delete account.",
+        err instanceof ApiError ? err.message : t.editor.couldNotDelete,
       );
       setDeleting(false);
     }
@@ -130,7 +133,7 @@ export function ProfileEditor() {
     if (!file) return;
     setAvatarError(null);
     if (file.size > MAX_SOURCE_BYTES) {
-      setAvatarError("画像は15MBまでにしてください");
+      setAvatarError(t.editor.imageTooBig);
       return;
     }
     // Open the cropper; the actual upload happens on confirm.
@@ -147,7 +150,7 @@ export function ProfileEditor() {
       await refreshUser();
     } catch (err) {
       setAvatarError(
-        err instanceof ApiError ? err.message : "アップロードに失敗しました",
+        err instanceof ApiError ? err.message : t.editor.uploadFailed,
       );
     } finally {
       setAvatarBusy(false);
@@ -163,7 +166,7 @@ export function ProfileEditor() {
       await refreshUser();
     } catch (err) {
       setAvatarError(
-        err instanceof ApiError ? err.message : "削除に失敗しました",
+        err instanceof ApiError ? err.message : t.editor.deleteFailed,
       );
     } finally {
       setAvatarBusy(false);
@@ -227,16 +230,21 @@ export function ProfileEditor() {
       setStatus("saved");
     } catch (err) {
       setStatus("idle");
-      setError(err instanceof ApiError ? err.message : "Could not save profile");
+      setError(err instanceof ApiError ? err.message : t.editor.couldNotSave);
     }
   }
 
   return (
     <>
     <form className="card" onSubmit={onSubmit} ref={formRef}>
-      <h2 className="section-title">Your profile</h2>
+      <h2 className="section-title">{t.editor.title}</h2>
 
-      <label>Photo</label>
+      <label>{t.common.language}</label>
+      <div style={{ maxWidth: 200, marginBottom: 4 }}>
+        <LanguageSwitcher fullWidth />
+      </div>
+
+      <label>{t.editor.photo}</label>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         {user ? (
           <Avatar
@@ -255,7 +263,7 @@ export function ProfileEditor() {
             onClick={() => fileRef.current?.click()}
             disabled={avatarBusy}
           >
-            {avatarBusy ? "Uploading…" : "Change photo"}
+            {avatarBusy ? t.editor.uploading : t.editor.changePhoto}
           </button>
           {profile?.avatar_updated_at ? (
             <button
@@ -264,7 +272,7 @@ export function ProfileEditor() {
               onClick={onRemoveAvatar}
               disabled={avatarBusy}
             >
-              Remove
+              {t.common.remove}
             </button>
           ) : null}
         </div>
@@ -286,7 +294,7 @@ export function ProfileEditor() {
         />
       ) : null}
 
-      <label htmlFor="dn">Display name</label>
+      <label htmlFor="dn">{t.editor.displayName}</label>
       <input
         id="dn"
         value={form.display_name}
@@ -295,24 +303,24 @@ export function ProfileEditor() {
         maxLength={50}
       />
 
-      <label htmlFor="jt">Job title</label>
+      <label htmlFor="jt">{t.editor.jobTitle}</label>
       <input
         id="jt"
         value={form.job_title}
         onChange={(e) => set("job_title", e.target.value)}
         maxLength={60}
-        placeholder="Software Engineer"
+        placeholder={t.editor.jobPlaceholder}
       />
 
-      <label htmlFor="sm">Status message ({form.status_message.length}/100)</label>
+      <label htmlFor="sm">{t.editor.statusMessage(form.status_message.length)}</label>
       <input
         id="sm"
         value={form.status_message}
         onChange={(e) => set("status_message", e.target.value.slice(0, 100))}
-        placeholder="What are you up to?"
+        placeholder={t.editor.statusPlaceholder}
       />
 
-      <label htmlFor="bd">Birth date</label>
+      <label htmlFor="bd">{t.editor.birthDate}</label>
       <input
         id="bd"
         type="date"
@@ -338,7 +346,7 @@ export function ProfileEditor() {
             onChange={(e) => set("show_age", e.target.checked)}
             style={{ width: "auto" }}
           />
-          Show my age
+          {t.editor.showAge}
         </label>
         <label
           style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}
@@ -349,11 +357,11 @@ export function ProfileEditor() {
             onChange={(e) => set("show_birth_date", e.target.checked)}
             style={{ width: "auto" }}
           />
-          Show my birth date
+          {t.editor.showBirthDate}
         </label>
       </div>
 
-      <label>Languages (programming languages you&apos;ve worked with)</label>
+      <label>{t.editor.languagesLabel}</label>
       <Select
         fullWidth
         // Always shows the placeholder: picking a language adds it and resets.
@@ -362,10 +370,10 @@ export function ProfileEditor() {
         disabled={form.languages.length >= 30}
         placeholder={
           form.languages.length >= 30
-            ? "Maximum 30 languages"
-            : "Add a language…"
+            ? t.editor.maxLanguages
+            : t.editor.addLanguage
         }
-        ariaLabel="Add a programming language"
+        ariaLabel={t.editor.addLanguageAria}
         options={PROGRAMMING_LANGUAGES.filter(
           (lang) => !form.languages.includes(lang),
         ).map((lang) => ({ value: lang, label: lang }))}
@@ -390,7 +398,7 @@ export function ProfileEditor() {
               <button
                 type="button"
                 onClick={() => removeLanguage(lang)}
-                aria-label={`Remove ${lang}`}
+                aria-label={t.editor.removeLang(lang)}
                 style={{
                   border: "none",
                   background: "transparent",
@@ -407,13 +415,13 @@ export function ProfileEditor() {
         </div>
       ) : null}
 
-      <label style={{ marginTop: 4 }}>Links &amp; visibility</label>
+      <label style={{ marginTop: 4 }}>{t.editor.linksVisibility}</label>
       <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>
-        Choose who can see each link: everyone, friends only, or just you.
+        {t.editor.linksVisibilityDesc}
       </p>
       {LINK_FIELDS.map((f) => (
         <div key={f.key} style={{ marginBottom: 10 }}>
-          <label htmlFor={f.key}>{f.label}</label>
+          <label htmlFor={f.key}>{t.editor[f.labelKey]}</label>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
               id={f.key}
@@ -427,7 +435,7 @@ export function ProfileEditor() {
                 fullWidth
                 value={form[f.visKey]}
                 onChange={(v) => set(f.visKey, v as Visibility)}
-                ariaLabel={`${f.label} visibility`}
+                ariaLabel={t.editor.linkVisibilityAria(t.editor[f.labelKey])}
                 options={VISIBILITY_OPTIONS}
               />
             </div>
@@ -437,27 +445,24 @@ export function ProfileEditor() {
 
       <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12 }}>
         <button className="primary" type="submit" disabled={status === "saving"} style={{ width: "auto" }}>
-          {status === "saving" ? "Saving…" : "Save profile"}
+          {status === "saving" ? t.editor.saving : t.editor.save}
         </button>
-        {status === "saved" ? <span style={{ color: "var(--ok)" }}>Saved ✓</span> : null}
+        {status === "saved" ? <span style={{ color: "var(--ok)" }}>{t.editor.saved}</span> : null}
       </div>
       {error ? <p className="error">{error}</p> : null}
     </form>
 
     <section className="card" style={{ marginTop: 18, borderColor: "var(--danger, #d9534f)" }}>
-      <h3 style={{ marginTop: 0 }}>Delete account</h3>
-      <p className="muted">
-        Permanently delete your account and all associated data (profile,
-        friendships, requests and avatar). This cannot be undone.
-      </p>
+      <h3 style={{ marginTop: 0 }}>{t.editor.deleteAccount}</h3>
+      <p className="muted">{t.editor.deleteDesc}</p>
       {!confirmingDelete ? (
         <button type="button" className="ghost" onClick={() => setConfirmingDelete(true)}>
-          Delete my account
+          {t.editor.deleteMyAccount}
         </button>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 360 }}>
           <label>
-            Confirm your password
+            {t.editor.confirmPassword}
             <input
               type="password"
               autoComplete="current-password"
@@ -474,7 +479,7 @@ export function ProfileEditor() {
               disabled={deleting || deletePassword.length === 0}
               onClick={onDeleteAccount}
             >
-              {deleting ? "Deleting…" : "Permanently delete"}
+              {deleting ? t.editor.deleting : t.editor.permanentlyDelete}
             </button>
             <button
               type="button"
@@ -486,7 +491,7 @@ export function ProfileEditor() {
                 setDeleteError(null);
               }}
             >
-              Cancel
+              {t.common.cancel}
             </button>
           </div>
         </div>

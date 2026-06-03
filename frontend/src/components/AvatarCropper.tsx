@@ -10,6 +10,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/lib/i18n";
 
 // Square crop: drag to reposition, slider to zoom. The picked image is drawn
 // into a square <canvas> and handed back as a JPEG blob, so the stored avatar
@@ -26,6 +27,7 @@ export function AvatarCropper({
   onCancel: () => void;
   onConfirm: (blob: Blob) => void;
 }) {
+  const { t } = useI18n();
   const imgRef = useRef<HTMLImageElement>(null);
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -140,12 +142,12 @@ export function AvatarCropper({
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 360 }}
       >
-        <button className="modal-close" onClick={onCancel} aria-label="Close">
+        <button className="modal-close" onClick={onCancel} aria-label={t.common.close}>
           ×
         </button>
-        <h2 className="section-title">Crop photo</h2>
+        <h2 className="section-title">{t.cropper.title}</h2>
         <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>
-          Drag to reposition · slide to zoom. The circle shows your avatar.
+          {t.cropper.desc}
         </p>
 
         <div
@@ -196,7 +198,7 @@ export function AvatarCropper({
             onClick={confirm}
             style={{ width: "auto" }}
           >
-            Use photo
+            {t.cropper.usePhoto}
           </button>
           <button
             className="ghost"
@@ -204,7 +206,7 @@ export function AvatarCropper({
             onClick={onCancel}
             style={{ width: "auto" }}
           >
-            Cancel
+            {t.common.cancel}
           </button>
         </div>
       </div>

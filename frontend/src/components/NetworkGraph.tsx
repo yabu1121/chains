@@ -12,6 +12,7 @@ import {
 } from "@/lib/hooks";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { prefersReducedMotion, useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
 import { ProfileModal } from "./ProfileModal";
 import { Select } from "./Select";
 
@@ -74,6 +75,7 @@ export function NetworkGraph({
 }: {
   onEditProfile?: () => void;
 }) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { graph, isLoading, error } = useNetwork();
   const { friends } = useFriends();
@@ -198,7 +200,7 @@ export function NetworkGraph({
         }}
       >
         <h2 className="section-title" style={{ margin: 0 }}>
-          Global network
+          {t.network.title}
         </h2>
         <div
           style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}
@@ -207,33 +209,33 @@ export function NetworkGraph({
             <Select
               value={language}
               onChange={setLanguage}
-              ariaLabel="Highlight by language"
+              ariaLabel={t.network.highlightByLanguage}
               options={[
-                { value: "", label: "All languages" },
+                { value: "", label: t.network.allLanguages },
                 ...graphLanguages.map((lang) => ({ value: lang, label: lang })),
               ]}
             />
           ) : null}
           <div className="muted" style={{ fontSize: 13 }}>
-            <Legend color={COLORS.self} label="You" />
-            <Legend color={COLORS.friend} label="Friends" />
-            <Legend color={COLORS.other} label="Everyone" />
-            <Legend color={COLORS.self} label="Pending" dashed />
+            <Legend color={COLORS.self} label={t.network.legendYou} />
+            <Legend color={COLORS.friend} label={t.network.legendFriends} />
+            <Legend color={COLORS.other} label={t.network.legendEveryone} />
+            <Legend color={COLORS.self} label={t.network.legendPending} dashed />
           </div>
         </div>
       </div>
 
       {error ? (
         <p className="error" style={{ padding: "0 20px" }}>
-          Could not load the network.
+          {t.network.couldNotLoad}
         </p>
       ) : isLoading || !graph ? (
         <p className="empty" style={{ padding: "0 20px" }}>
-          Loading the network…
+          {t.network.loading}
         </p>
       ) : data.nodes.length === 0 ? (
         <p className="empty" style={{ padding: "0 20px" }}>
-          No one is here yet.
+          {t.network.empty}
         </p>
       ) : (
         <>

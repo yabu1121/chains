@@ -16,6 +16,7 @@ import { ProfileModal } from "@/components/ProfileModal";
 import { LegalDoc } from "@/components/LegalDoc";
 import { PrivacyEN, PrivacyJA, TermsEN, TermsJA } from "@/components/legal";
 import { useAuth } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n";
 import {
   acceptRequest,
   rejectRequest,
@@ -28,33 +29,21 @@ import {
 } from "@/lib/hooks";
 
 // Top-level navigation. Friends/Requests/Find are nested inside the Friends
-// area (see FriendsArea), so the sidebar only carries these three.
+// area (see FriendsArea), so the sidebar only carries these three. Labels are
+// resolved from the active dictionary at render time (t.nav[key]).
 type Tab = "friends" | "network" | "news" | "settings";
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "friends", label: "Friends" },
-  { key: "network", label: "Network" },
-  { key: "news", label: "News" },
-  { key: "settings", label: "Settings" },
-];
+const TABS: Tab[] = ["friends", "network", "news", "settings"];
 
 // Sub-tabs within the Friends area.
 type FriendsSub = "friends" | "requests" | "find";
 
-const FRIENDS_TABS: { key: FriendsSub; label: string }[] = [
-  { key: "friends", label: "Friends" },
-  { key: "requests", label: "Requests" },
-  { key: "find", label: "Find" },
-];
+const FRIENDS_TABS: FriendsSub[] = ["friends", "requests", "find"];
 
 // Sub-tabs within the Settings area.
 type SettingsSub = "profile" | "privacy" | "terms";
 
-const SETTINGS_TABS: { key: SettingsSub; label: string }[] = [
-  { key: "profile", label: "Profile" },
-  { key: "privacy", label: "Privacy" },
-  { key: "terms", label: "Terms" },
-];
+const SETTINGS_TABS: SettingsSub[] = ["profile", "privacy", "terms"];
 
 export default function FriendsPage() {
   return (
@@ -78,9 +67,10 @@ function NavLinks({
   // Slide a shared "pill" behind the active item (sidebar only).
   withPill?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <>
-      {TABS.map(({ key, label }) => (
+      {TABS.map((key) => (
         <button
           key={key}
           className={`navbtn${tab === key ? " active" : ""}`}
@@ -93,7 +83,7 @@ function NavLinks({
               transition={{ type: "spring", stiffness: 480, damping: 38 }}
             />
           ) : null}
-          <span className="nav-label">{label}</span>
+          <span className="nav-label">{t.nav[key]}</span>
           {key === "friends" && incomingCount > 0 ? (
             <span className="badge">{incomingCount}</span>
           ) : null}
@@ -112,11 +102,11 @@ function Dashboard() {
   const [showOwnProfile, setShowOwnProfile] = useState(false);
   const incomingCount = useIncomingCount();
   const { user, logout } = useAuth();
+  const { t } = useI18n();
   const reduce = prefersReducedMotion();
 
   const changeTab = (next: Tab) => {
-    const idx = (t: Tab) => TABS.findIndex((x) => x.key === t);
-    setDir(idx(next) >= idx(tab) ? 1 : -1);
+    setDir(TABS.indexOf(next) >= TABS.indexOf(tab) ? 1 : -1);
     setTab(next);
   };
 
@@ -129,7 +119,7 @@ function Dashboard() {
           type="button"
           className="brand"
           onClick={() => setShowOwnProfile(true)}
-          title="View your profile"
+          title={t.nav.viewProfile}
         >
           ⛓ chains
         </button>
@@ -145,7 +135,7 @@ function Dashboard() {
         <div className="sidebar-foot">
           {user ? <span className="muted">{user.display_name}</span> : null}
           <button className="ghost" onClick={logout}>
-            Log out
+            {t.nav.logout}
           </button>
         </div>
       </aside>
@@ -171,8 +161,8 @@ function Dashboard() {
                   className="card"
                   style={{ textAlign: "center", padding: "48px 24px" }}
                 >
-                  <h2 style={{ marginTop: 0 }}>News</h2>
-                  <p className="muted">Coming soon</p>
+                  <h2 style={{ marginTop: 0 }}>{t.nav.news}</h2>
+                  <p className="muted">{t.nav.comingSoon}</p>
                 </div>
               ) : null}
               {tab === "settings" ? <SettingsArea /> : null}
@@ -208,19 +198,19 @@ function FriendsArea() {
   const [sub, setSub] = useState<FriendsSub>("friends");
   const [dir, setDir] = useState(0);
   const incomingCount = useIncomingCount();
+  const { t } = useI18n();
   const reduce = prefersReducedMotion();
   const dist = reduce ? 0 : 24;
 
   const changeSub = (next: FriendsSub) => {
-    const idx = (s: FriendsSub) => FRIENDS_TABS.findIndex((x) => x.key === s);
-    setDir(idx(next) >= idx(sub) ? 1 : -1);
+    setDir(FRIENDS_TABS.indexOf(next) >= FRIENDS_TABS.indexOf(sub) ? 1 : -1);
     setSub(next);
   };
 
   return (
     <>
       <div className="subtabs" role="tablist">
-        {FRIENDS_TABS.map(({ key, label }) => (
+        {FRIENDS_TABS.map((key) => (
           <button
             key={key}
             role="tab"
@@ -235,7 +225,7 @@ function FriendsArea() {
                 transition={{ type: "spring", stiffness: 480, damping: 38 }}
               />
             ) : null}
-            <span className="subtab-label">{label}</span>
+            <span className="subtab-label">{t.friendsTabs[key]}</span>
             {key === "requests" && incomingCount > 0 ? (
               <span className="badge">{incomingCount}</span>
             ) : null}
@@ -270,19 +260,19 @@ function FriendsArea() {
 function SettingsArea() {
   const [sub, setSub] = useState<SettingsSub>("profile");
   const [dir, setDir] = useState(0);
+  const { t } = useI18n();
   const reduce = prefersReducedMotion();
   const dist = reduce ? 0 : 24;
 
   const changeSub = (next: SettingsSub) => {
-    const idx = (s: SettingsSub) => SETTINGS_TABS.findIndex((x) => x.key === s);
-    setDir(idx(next) >= idx(sub) ? 1 : -1);
+    setDir(SETTINGS_TABS.indexOf(next) >= SETTINGS_TABS.indexOf(sub) ? 1 : -1);
     setSub(next);
   };
 
   return (
     <>
       <div className="subtabs" role="tablist">
-        {SETTINGS_TABS.map(({ key, label }) => (
+        {SETTINGS_TABS.map((key) => (
           <button
             key={key}
             role="tab"
@@ -297,7 +287,7 @@ function SettingsArea() {
                 transition={{ type: "spring", stiffness: 480, damping: 38 }}
               />
             ) : null}
-            <span className="subtab-label">{label}</span>
+            <span className="subtab-label">{t.settingsTabs[key]}</span>
           </button>
         ))}
       </div>
@@ -329,6 +319,7 @@ function SettingsArea() {
 
 function FriendsTab() {
   const { friends, isLoading } = useFriends();
+  const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [language, setLanguage] = useState("");
   const cardRef = useReveal<HTMLDivElement>();
@@ -356,26 +347,26 @@ function FriendsTab() {
         }}
       >
         <h2 className="section-title" style={{ margin: 0 }}>
-          Your friends
+          {t.friends.yourFriends}
         </h2>
         {availableLanguages.length > 0 ? (
           <Select
             value={language}
             onChange={setLanguage}
-            ariaLabel="Filter friends by language"
+            ariaLabel={t.friends.filterByLanguage}
             options={[
-              { value: "", label: "All languages" },
+              { value: "", label: t.friends.allLanguages },
               ...availableLanguages.map((lang) => ({ value: lang, label: lang })),
             ]}
           />
         ) : null}
       </div>
       {isLoading ? (
-        <p className="empty">Loading…</p>
+        <p className="empty">{t.common.loading}</p>
       ) : friends.length === 0 ? (
-        <p className="empty">No friends yet. Head to “Find people” to connect.</p>
+        <p className="empty">{t.friends.noFriends}</p>
       ) : visible.length === 0 ? (
-        <p className="empty">No friends use {language}.</p>
+        <p className="empty">{t.friends.noFriendsLang(language)}</p>
       ) : (
         <div ref={listRef}>
           {visible.map((f) => (
@@ -385,12 +376,14 @@ function FriendsTab() {
               onSelect={() => setSelectedId(f.user.id)}
               actions={
                 <>
-                  <button onClick={() => removeFriend(f.user.id)}>Remove</button>
+                  <button onClick={() => removeFriend(f.user.id)}>
+                    {t.common.remove}
+                  </button>
                   <button
                     className="danger"
                     onClick={() => blockUser(f.user.id)}
                   >
-                    Block
+                    {t.friends.block}
                   </button>
                 </>
               }
@@ -408,6 +401,7 @@ function FriendsTab() {
 function RequestsTab() {
   const { requests: incoming, isLoading: loadingIn } = useIncomingRequests();
   const { requests: outgoing, isLoading: loadingOut } = useOutgoingRequests();
+  const { t } = useI18n();
   const inCardRef = useReveal<HTMLDivElement>();
   const outCardRef = useReveal<HTMLDivElement>({ delay: 90 });
   const inListRef = useStagger<HTMLDivElement>(incoming.length);
@@ -416,11 +410,11 @@ function RequestsTab() {
   return (
     <>
       <div className="card" ref={inCardRef}>
-        <h2 className="section-title">Incoming requests</h2>
+        <h2 className="section-title">{t.friends.incomingRequests}</h2>
         {loadingIn ? (
-          <p className="empty">Loading…</p>
+          <p className="empty">{t.common.loading}</p>
         ) : incoming.length === 0 ? (
-          <p className="empty">No incoming requests.</p>
+          <p className="empty">{t.friends.noIncoming}</p>
         ) : (
           <div ref={inListRef}>
             {incoming.map((r) => (
@@ -431,13 +425,13 @@ function RequestsTab() {
                 actions={
                   <>
                     <button onClick={() => acceptRequest(r.request_id)}>
-                      Accept
+                      {t.friends.accept}
                     </button>
                     <button
                       className="ghost"
                       onClick={() => rejectRequest(r.request_id)}
                     >
-                      Decline
+                      {t.friends.decline}
                     </button>
                   </>
                 }
@@ -448,25 +442,25 @@ function RequestsTab() {
       </div>
 
       <div className="card" ref={outCardRef}>
-        <h2 className="section-title">Sent requests</h2>
+        <h2 className="section-title">{t.friends.sentRequests}</h2>
         {loadingOut ? (
-          <p className="empty">Loading…</p>
+          <p className="empty">{t.common.loading}</p>
         ) : outgoing.length === 0 ? (
-          <p className="empty">No pending sent requests.</p>
+          <p className="empty">{t.friends.noSent}</p>
         ) : (
           <div ref={outListRef}>
             {outgoing.map((r) => (
               <Person
                 key={r.request_id}
                 user={r.user}
-                subtitle="Pending…"
+                subtitle={t.friends.pending}
                 arrow="out"
                 actions={
                   <button
                     className="ghost"
                     onClick={() => rejectRequest(r.request_id)}
                   >
-                    Cancel
+                    {t.common.cancel}
                   </button>
                 }
               />
