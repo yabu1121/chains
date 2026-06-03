@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { Guard } from "@/components/Guard";
 import { ProfileView } from "@/components/ProfileView";
 import { AddFriendDialog } from "@/components/AddFriendDialog";
+import { TopBrandBar } from "@/components/TopBrandBar";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { getProfileByUsername, useFriends } from "@/lib/hooks";
@@ -42,11 +43,14 @@ function AddByUsername() {
   const isFriend = !!data && friends.some((f) => f.user.id === data.id);
 
   return (
-    <div className="container center-narrow">
-      <h1 className="brand" style={{ textAlign: "center", marginBottom: 24 }}>
-        ⛓ chains
-      </h1>
-      <div className="card" ref={cardRef}>
+    <>
+      <TopBrandBar />
+      <div className="container center-narrow">
+        <h1 className="auth-wordmark" style={{ marginBottom: 24 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="auth-logo" src="/chains-logo.png" alt="chains" />
+        </h1>
+        <div className="card" ref={cardRef}>
         {error ? (
           <>
             <p className="error">
@@ -99,6 +103,7 @@ function AddByUsername() {
           onSent={() => setRequested(true)}
         />
       ) : null}
-    </div>
+      </div>
+    </>
   );
 }

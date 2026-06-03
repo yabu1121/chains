@@ -8,6 +8,7 @@ import { AddFriendDialog } from "./AddFriendDialog";
 import { useAuth } from "@/lib/auth";
 import { getProfile, useFriends } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
+import { useDialog } from "@/lib/dialog";
 import { useI18n } from "@/lib/i18n";
 import type { PublicProfile } from "@/lib/types";
 
@@ -34,7 +35,13 @@ export function ProfileModal({
   const [showDialog, setShowDialog] = useState(false);
 
   const overlayRef = useReveal<HTMLDivElement>({ y: 0, duration: 250 });
-  const cardRef = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 360 });
+  const cardReveal = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 360 });
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
+  // The card needs both the entrance-animation ref and the dialog ref.
+  const setCardRef = (node: HTMLDivElement | null) => {
+    cardReveal.current = node;
+    dialogRef.current = node;
+  };
 
   const isSelf = user?.id === userId;
   const isFriend = friends.some((f) => f.user.id === userId);
@@ -51,8 +58,11 @@ export function ProfileModal({
     <div className="modal-overlay" onClick={onClose} ref={overlayRef}>
       <div
         className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={data?.display_name ?? t.settingsTabs.profile}
         onClick={(e) => e.stopPropagation()}
-        ref={cardRef}
+        ref={setCardRef}
       >
         <button className="modal-close" onClick={onClose} aria-label={t.common.close}>
           ×

@@ -6,6 +6,7 @@ import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { prefersReducedMotion, useReveal, useStagger } from "@/lib/anim";
 import { Guard } from "@/components/Guard";
 import { Select } from "@/components/Select";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Topbar } from "@/components/Topbar";
 import { Person } from "@/components/Person";
 import { FindPeople } from "@/components/FindPeople";
@@ -121,7 +122,8 @@ function Dashboard() {
           onClick={() => setShowOwnProfile(true)}
           title={t.nav.viewProfile}
         >
-          ⛓ chains
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="brand-logo" src="/chains-logo.png" alt="chains" />
         </button>
         <nav className="sidebar-nav">
           <NavLinks
@@ -133,6 +135,7 @@ function Dashboard() {
           />
         </nav>
         <div className="sidebar-foot">
+          <LanguageSwitcher fullWidth />
           {user ? <span className="muted">{user.display_name}</span> : null}
           <button className="ghost" onClick={logout}>
             {t.nav.logout}
@@ -209,6 +212,7 @@ function FriendsArea() {
 
   return (
     <>
+      <h1 className="area-title">{t.nav.friends}</h1>
       <div className="subtabs" role="tablist">
         {FRIENDS_TABS.map((key) => (
           <button
@@ -271,6 +275,7 @@ function SettingsArea() {
 
   return (
     <>
+      <h1 className="area-title">{t.nav.settings}</h1>
       <div className="subtabs" role="tablist">
         {SETTINGS_TABS.map((key) => (
           <button

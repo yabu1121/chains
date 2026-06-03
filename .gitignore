@@ -22,3 +22,5 @@ tsconfig.tsbuildinfo
 # Misc
 *.log
 .DS_Store
+# Windows "mark of the web" alternate-data-stream sidecars from copied files
+*:Zone.Identifier

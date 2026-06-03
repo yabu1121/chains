@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api";
 import { useReveal } from "@/lib/anim";
 import { useI18n } from "@/lib/i18n";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { TopBrandBar } from "@/components/TopBrandBar";
 
 export default function LoginPage() {
   const { t } = useI18n();
@@ -39,15 +39,17 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="container center-narrow">
-      <h1
-        ref={brandRef}
-        className="brand"
-        style={{ textAlign: "center", marginBottom: 24 }}
-      >
-        ⛓ chains
-      </h1>
-      <form ref={cardRef} className="card" onSubmit={onSubmit}>
+    <>
+      <TopBrandBar />
+      <div className="auth-page">
+        <header ref={brandRef} className="auth-hero">
+        <h1 className="auth-wordmark">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="auth-logo" src="/chains-logo.png" alt="chains" />
+        </h1>
+        <p className="auth-eyebrow">{t.login.eyebrow}</p>
+      </header>
+      <form ref={cardRef} className="card auth-card" onSubmit={onSubmit}>
         <h2 className="section-title">{t.login.title}</h2>
         <label htmlFor="email">{t.login.email}</label>
         <input
@@ -78,10 +80,8 @@ export default function LoginPage() {
           <Link href="/terms">{t.legal.terms}</Link> ·{" "}
           <Link href="/privacy">{t.legal.privacy}</Link>
         </p>
-      </form>
-      <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
-        <LanguageSwitcher />
+        </form>
       </div>
-    </div>
+    </>
   );
 }

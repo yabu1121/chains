@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ApiError } from "@/lib/api";
 import { sendRequest } from "@/lib/hooks";
 import { useReveal } from "@/lib/anim";
+import { useDialog } from "@/lib/dialog";
 import { useI18n } from "@/lib/i18n";
 
 const MAX_MESSAGE = 150;
@@ -32,7 +33,12 @@ export function AddFriendDialog({
   const [error, setError] = useState<string | null>(null);
 
   const overlayRef = useReveal<HTMLDivElement>({ y: 0, duration: 200 });
-  const cardRef = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 320 });
+  const cardReveal = useReveal<HTMLDivElement>({ scale: 0.94, y: 8, duration: 320 });
+  const dialogRef = useDialog<HTMLDivElement>(onClose);
+  const setCardRef = (node: HTMLDivElement | null) => {
+    cardReveal.current = node;
+    dialogRef.current = node;
+  };
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -56,8 +62,11 @@ export function AddFriendDialog({
     <div className="modal-overlay" onClick={onClose} ref={overlayRef}>
       <div
         className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.addFriendDialog.title}
         onClick={(e) => e.stopPropagation()}
-        ref={cardRef}
+        ref={setCardRef}
         style={{ maxWidth: 420 }}
       >
         <button className="modal-close" onClick={onClose} aria-label={t.common.close}>

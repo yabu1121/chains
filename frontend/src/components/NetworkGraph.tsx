@@ -43,10 +43,12 @@ interface GraphLink {
   pending: boolean;
 }
 
+// Warm-ink palette (see .design/visual-refresh): you are the indigo accent,
+// friends are ink, everyone else a muted graphite.
 const COLORS: Record<Role, string> = {
-  self: "#4cb5f5", // bluesky
-  friend: "#34675c", // pine
-  other: "#6b7280",
+  self: "#2d4f7c", // 藍 / indigo accent
+  friend: "#16181d", // ink
+  other: "#9a958b", // warm graphite
 };
 
 /** Tracks a container's pixel size so the canvas can fill it. */

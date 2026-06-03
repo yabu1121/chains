@@ -10,6 +10,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { useDialog } from "@/lib/dialog";
 import { useI18n } from "@/lib/i18n";
 
 // Square crop: drag to reposition, slider to zoom. The picked image is drawn
@@ -28,6 +29,7 @@ export function AvatarCropper({
   onConfirm: (blob: Blob) => void;
 }) {
   const { t } = useI18n();
+  const dialogRef = useDialog<HTMLDivElement>(onCancel);
   const imgRef = useRef<HTMLImageElement>(null);
   const [nat, setNat] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -139,7 +141,11 @@ export function AvatarCropper({
     <div className="modal-overlay" onClick={onCancel}>
       <div
         className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-label={t.cropper.title}
         onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
         style={{ maxWidth: 360 }}
       >
         <button className="modal-close" onClick={onCancel} aria-label={t.common.close}>

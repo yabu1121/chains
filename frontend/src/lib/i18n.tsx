@@ -64,6 +64,7 @@ const en = {
     terms: "Terms",
   },
   login: {
+    eyebrow: "Friends only · invite-based",
     title: "Log in",
     email: "Email",
     password: "Password",
@@ -258,6 +259,7 @@ const ja: Dict = {
     terms: "利用規約",
   },
   login: {
+    eyebrow: "友だち限定 · 招待制",
     title: "ログイン",
     email: "メールアドレス",
     password: "パスワード",

@@ -1,30 +1,54 @@
 :root {
-  --bg: #f5f6f8;
+  /* Warm paper base instead of cool grey — reads as an edited page, not a
+     default SaaS dashboard. Ink text is near-black for editorial contrast. */
+  --bg: #faf8f4;
   --panel: #ffffff;
-  --panel-2: #eef1f5;
-  --border: #e2e5ea;
-  --text: #1a1d24;
-  --muted: #687083;
-  --accent: #2f6bff;
-  --accent-press: #2257e0;
-  --danger: #e5484d;
-  --ok: #2baa6b;
-  --radius: 16px;
+  --panel-2: #f1eee8;
+  --border: #e6e1d8;
+  --ink: #16181d;
+  --text: #16181d;
+  --muted: #5b616f; /* ~5.4:1 on warm paper — AA for small mono captions */
+  /* Accent = 藍 / indigo ink (fountain-pen / blueprint / indigo-dye). A warm,
+     analog, grown-up blue — used as a spark on active states & key affordances,
+     never as a fill. Ink stays the dominant colour. */
+  --accent: #2d4f7c;
+  --accent-press: #223c5e;
+  --accent-soft: rgba(45, 79, 124, 0.1); /* tinted pill / chip backgrounds */
+  --danger: #b8412c; /* warm vermilion, matches the analog palette */
+  --ok: #2f6a4f;
+  --radius: 14px;
   --sidebar-w: 240px;
   --bottombar-h: 60px;
 
-  --bluesky: #4cb5f5;
-  --granite: #b7b8b6;
-  --pine: #34675c;
-  --fields: #b3c100;
+  /* Type. Latin/English renders in JetBrains Mono (--font-mono, injected by
+     layout.tsx); Japanese glyphs fall through to IBM Plex Sans JP (--font-jp).
+     Putting --font-mono first means English = JetBrains Mono, 日本語 = IBM Plex
+     Sans JP automatically (JetBrains Mono has no JP glyphs). */
+  --font-body:
+    var(--font-mono), var(--font-jp), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-body);
 
-  /* Brand fill for brand text, primary buttons, active nav, avatars and badges.
-     Solid pine — the former 4-colour gradient was dropped. */
-  --grad: var(--pine);
+  /* Editorial type scale — big, decisive jumps so headings dominate. */
+  --step-hero: clamp(2.75rem, 6vw, 4.5rem); /* login / page heroes */
+  --step-h1: clamp(1.75rem, 3.5vw, 2.5rem); /* section heroes (Fraunces) */
+  --step-h2: 1.5rem; /* card titles when shown large */
+
+  /* Brand fill for primary buttons, active nav, avatars: solid ink, for a
+     letterpress / printed-matter feel. The indigo --accent is the spark. */
+  --grad: var(--ink);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Visible keyboard focus everywhere — indigo ring offset from the element.
+   Inputs/select keep their own focus styling; this guarantees buttons, links,
+   nav items and custom controls are never left without a focus indicator. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
 html {
@@ -36,6 +60,18 @@ html {
   from {
     opacity: 0;
     transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Top bar settles in from slightly above so it doesn't pop in abruptly. */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
@@ -72,13 +108,18 @@ html {
   height: 100%;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.26;
+  /* Faint, like a schematic pencilled on the paper. */
+  opacity: 0.12;
 }
 
 .chain-bg .cb-edge {
-  stroke: url(#cb-grad);
-  stroke-width: 1;
+  stroke: var(--ink);
+  stroke-width: 0.75;
   stroke-linecap: round;
+}
+
+.chain-bg .cb-node {
+  fill: var(--accent);
 }
 
 .app-root {
@@ -91,33 +132,33 @@ body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   color: var(--text);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.5;
+  /* Nicer rag on paragraphs without orphans. */
+  text-wrap: pretty;
 }
 
-/* Soft, fixed gradient wash over the light base — keeps surfaces readable. */
+/* Flat warm paper — the old multi-colour radial washes read as generic; the
+   editorial look leans on type and rules for interest, not background colour. */
 body {
-  background:
-    radial-gradient(
-      1100px 620px at 100% -8%,
-      rgba(76, 181, 245, 0.13),
-      transparent 60%
-    ),
-    radial-gradient(
-      900px 680px at -8% 108%,
-      rgba(179, 193, 0, 0.1),
-      transparent 55%
-    ),
-    radial-gradient(
-      760px 520px at 50% 120%,
-      rgba(52, 103, 92, 0.07),
-      transparent 60%
-    ),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
+}
+
+/* Paper grain — a faint fractal-noise overlay gives the flat paper an analog,
+   printed texture (no gradients). Fixed, non-interactive, multiplied so it
+   darkens slightly into the warm base rather than greying it out. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 a {
@@ -136,6 +177,7 @@ a {
 .app-shell {
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .sidebar {
@@ -149,6 +191,7 @@ a {
   position: sticky;
   top: 0;
   height: 100vh;
+  height: 100dvh;
 }
 
 .sidebar .brand {
@@ -176,6 +219,7 @@ a {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .content {
@@ -241,7 +285,7 @@ a {
    the label — so the button itself stays transparent. White-based sidebar:
    a soft tinted pill with the accent colour as text, not a solid dark fill. */
 .navbtn.active {
-  color: var(--grad);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -250,8 +294,8 @@ a {
   inset: 0;
   z-index: 0;
   border-radius: 8px;
-  background: rgba(52, 103, 92, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(52, 103, 92, 0.18);
+  background: rgba(45, 79, 124, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(45, 79, 124, 0.18);
 }
 
 .navbtn .nav-label,
@@ -270,10 +314,26 @@ a {
 }
 
 .brand {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   font-weight: 700;
-  font-size: 18px;
-  letter-spacing: 0.5px;
-  color: var(--grad);
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/* Wordmark logo in the sidebar / mobile topbar brand button. This wordmark is
+   tall (≈1.6:1) and uses an outlined typeface, so it needs a generous size to
+   stay legible. */
+.brand-logo {
+  display: block;
+  height: 30px;
+  width: auto;
+}
+
+/* The sidebar has room (240px) — show the wordmark large enough to read. */
+.sidebar .brand-logo {
+  height: 52px;
 }
 
 /* The brand doubles as a button (click → your profile); strip the chrome but
@@ -292,27 +352,56 @@ button.brand {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 22px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
-  transition:
-    box-shadow 0.25s ease,
-    transform 0.25s ease;
-  /* `backwards` (not `forwards`) so the held transform doesn't fight :hover. */
+  /* Flat, crisp panel — depth comes from the warm border and paper grain, not
+     a floaty drop shadow. */
+  box-shadow: none;
+  transition: border-color 0.18s ease;
   animation: fade-in-up 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .card:hover {
-  box-shadow: 0 6px 24px rgba(16, 24, 40, 0.08);
-  transform: translateY(-2px);
+  border-color: #d8d1c4;
 }
 
+/* Area title: the one large editorial heading on an in-app view, in Fraunces.
+   Gives the dashboard the type hierarchy the brief calls for (login is no longer
+   the only place the display face appears). */
+.area-title {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: var(--step-h1);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--ink);
+  margin: 4px 0 18px;
+}
+
+/* Section label set like a ledger / spec marker: mono, tracked, with a short
+   indigo tick before it. Deliberate and printed-feeling, not the generic tiny
+   grey caps of a default dashboard. */
 .section-title {
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.12em;
   color: var(--muted);
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+}
+
+.section-title::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  flex: none;
+  background: var(--accent);
 }
 
 .row {
@@ -336,8 +425,11 @@ button.brand {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  color: #fff;
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  /* Warm-paper initials on ink — reads like a stamped monogram. */
+  color: var(--bg);
   margin-right: 10px;
 }
 
@@ -363,8 +455,10 @@ button.brand {
 }
 
 .person .email {
+  font-family: var(--font-body);
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
   /* Long handles/emails (no spaces) must break instead of widening the row. */
   overflow-wrap: anywhere;
 }
@@ -401,7 +495,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
 }
 
 /* Custom dropdown: drop the native arrow, add our own chevron + interactions. */
@@ -422,13 +516,13 @@ select {
 }
 
 select:hover {
-  border-color: var(--pine);
-  background-color: #e7ebf1;
+  border-color: var(--accent);
+  background-color: #ebe5db;
 }
 
 /* Swap the chevron to the brand blue on focus. */
 select:focus {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234cb5f5' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232d4f7c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 }
 
 select option {
@@ -439,7 +533,7 @@ select option {
 /* The native popup ignores most styling, but a left accent bar on the
    highlighted option reads as intentional where browsers honour it. */
 select option:checked {
-  box-shadow: inset 3px 0 0 var(--bluesky);
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 /* ── Custom animated select (see components/Select.tsx) ─────────────── */
@@ -481,19 +575,19 @@ select option:checked {
 }
 
 .select-trigger:hover:not(:disabled) {
-  border-color: var(--pine);
-  background-color: #e7ebf1;
+  border-color: var(--accent);
+  background-color: #ebe5db;
 }
 
 .select-trigger:focus-visible {
   outline: none;
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
 }
 
 .select-trigger.open {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.15);
+  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
 }
 
 .select-trigger:disabled {
@@ -558,7 +652,7 @@ select option:checked {
 }
 
 .select-option.selected {
-  color: var(--pine);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -575,7 +669,7 @@ select option:checked {
 
 .select-check {
   flex-shrink: 0;
-  color: var(--pine);
+  color: var(--accent);
 }
 
 label {
@@ -600,7 +694,7 @@ button {
 }
 
 button:hover {
-  background: #e4e8ee;
+  background: #ebe5db;
 }
 
 button:active:not(:disabled) {
@@ -615,18 +709,19 @@ button:disabled {
 button.primary {
   background: var(--grad);
   border: none;
-  color: #fff;
+  color: var(--bg);
   width: 100%;
   padding: 11px;
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(52, 103, 92, 0.22);
+  /* Tight, crisp seat instead of a coloured glow — an inked, pressed feel. */
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
   transition:
     transform 0.12s ease,
-    box-shadow 0.2s ease;
+    background-color 0.16s ease;
 }
 
 button.primary:hover {
-  box-shadow: 0 6px 22px rgba(52, 103, 92, 0.3);
+  background: #25282f;
 }
 
 button.danger {
@@ -645,11 +740,11 @@ button.ghost:hover {
 }
 
 .badge {
-  background: var(--grad);
-  background-size: 160% 160%;
+  background: var(--accent);
   color: #fff;
   border-radius: 999px;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   padding: 1px 8px;
   margin-left: 6px;
   animation: badge-pulse 1.8s ease-in-out infinite;
@@ -659,11 +754,11 @@ button.ghost:hover {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgba(47, 107, 255, 0.45);
+    box-shadow: 0 0 0 0 rgba(45, 79, 124, 0.45);
   }
   50% {
     transform: scale(1.08);
-    box-shadow: 0 0 0 5px rgba(47, 107, 255, 0);
+    box-shadow: 0 0 0 5px rgba(45, 79, 124, 0);
   }
 }
 
@@ -730,7 +825,7 @@ button.ghost:hover {
 }
 
 .subtab.active {
-  color: var(--pine);
+  color: var(--accent);
   font-weight: 600;
 }
 
@@ -783,9 +878,12 @@ button.ghost:hover {
 }
 
 .pv-name {
-  font-weight: 700;
-  font-size: 20px;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
 }
 
 .pv-job {
@@ -793,8 +891,8 @@ button.ghost:hover {
   margin-top: 6px;
   padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(52, 103, 92, 0.1);
-  color: var(--pine);
+  background: rgba(45, 79, 124, 0.1);
+  color: var(--accent);
   font-size: 13px;
   font-weight: 600;
 }
@@ -869,7 +967,7 @@ button.ghost:hover {
 
 .pv-link:hover {
   background: var(--panel-2);
-  border-color: var(--pine);
+  border-color: var(--accent);
 }
 
 .pv-link-text {
@@ -916,7 +1014,7 @@ button.ghost:hover {
 }
 
 .req-arrow--in {
-  color: var(--pine);
+  color: var(--accent);
 }
 
 .req-arrow--out {
@@ -947,6 +1045,157 @@ button.ghost:hover {
 .center-narrow {
   max-width: 380px;
   margin: 64px auto;
+}
+
+/* ── Editorial auth (login / register) ──────────────────────────────── */
+
+/* Shared page-top bar: icon (links home) left, language switcher right. */
+.brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  /* Ease the bar in (and reserve its height) so it doesn't snap into place. */
+  animation: fade-in-down 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.brandbar-mark {
+  display: inline-flex;
+  line-height: 0;
+  border-radius: 8px;
+}
+
+.brandbar-mark img {
+  display: block;
+  height: 34px;
+  width: auto;
+}
+
+.auth-page {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: clamp(40px, 8vh, 88px) 24px 64px;
+}
+
+.auth-hero {
+  /* Quiet baseline rule under the wordmark — a hairline detail, not a banner. */
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+
+/* Restrained serif wordmark: characterful Fraunces at a confident — not
+   oversized — size. The serif itself carries the personality, so no drama is
+   needed. */
+.auth-wordmark {
+  margin: 0;
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 2.25rem;
+  line-height: 1;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+.auth-mark {
+  margin-right: 0.18em;
+  font-size: 0.8em;
+  color: var(--accent);
+}
+
+/* Wordmark logo image (replaces the ⛓ chains text on the auth screens). */
+.auth-logo {
+  display: block;
+  height: clamp(52px, 11vw, 72px);
+  width: auto;
+}
+
+/* A small, factual descriptor — what the product literally is, set in mono so
+   it reads as a quiet caption rather than marketing copy. */
+.auth-eyebrow {
+  margin: 8px 0 0;
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* Lift the form off the hero (mobile, stacked layout). */
+.auth-card {
+  margin-top: 32px;
+  width: 100%;
+}
+
+/* Language switcher row under the form (mobile: centered). */
+.auth-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* Desktop: split the auth screen into two columns — brand on the left, form on
+   the right — vertically centred. The form keeps its own max width via the
+   column. Mobile keeps the single stacked column above. */
+@media (min-width: 860px) {
+  /* Wide, bilaterally symmetric split: the brand centred in the left half, the
+     form centred in the right half, both vertically centred. Each column owns an
+     equal share, so the screen reads balanced left-to-right. */
+  .auth-page {
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    gap: clamp(48px, 8vw, 120px);
+    padding: 80px 48px;
+  }
+
+  .auth-hero {
+    /* Drop the mobile divider; centre the brand block in the left half. */
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-logo {
+    height: clamp(96px, 9vw, 148px);
+  }
+
+  /* Unify the login & register cards to one size. The shorter login form is
+     centred inside it, so the height difference becomes balanced top/bottom
+     padding rather than a wasted gap. Tune --auth-card-min to the register
+     form's natural height. */
+  .auth-card {
+    margin-top: 0;
+    justify-self: center;
+    width: 100%;
+    max-width: 400px;
+    /* Measured: register card ≈ 593px tall. Unify both to this so login and
+       register are the same size. */
+    min-height: var(--auth-card-min, 596px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Centre the (shorter) login content with auto margins, so its leftover space
+     becomes balanced top/bottom margin rather than a gap. Register fills the
+     height, so these margins collapse to ~0. */
+  .auth-card > :first-child {
+    margin-top: auto;
+  }
+
+  .auth-card > :last-child {
+    margin-bottom: auto;
+  }
 }
 
 .modal-overlay {
@@ -997,11 +1246,11 @@ button.ghost:hover {
   }
 
   .content {
-    padding: 16px 14px calc(var(--bottombar-h) + 24px);
+    padding: 16px 14px calc(var(--bottombar-h) + 24px + env(safe-area-inset-bottom));
   }
 
   .content--full {
-    padding: 0 0 var(--bottombar-h);
+    padding: 0 0 calc(var(--bottombar-h) + env(safe-area-inset-bottom));
   }
 
   .bottombar {
@@ -1011,6 +1260,9 @@ button.ghost:hover {
     right: 0;
     bottom: 0;
     height: var(--bottombar-h);
+    /* Keep the bar clear of the iOS home indicator / gesture area. */
+    height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--border);
     background: var(--panel);
     z-index: 40;

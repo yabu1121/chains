@@ -15,7 +15,8 @@ export function Topbar({ onBrandClick }: { onBrandClick?: () => void }) {
         onClick={onBrandClick}
         title={t.nav.viewProfile}
       >
-        ⛓ chains
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="brand-logo" src="/chains-logo.png" alt="chains" />
       </button>
       <div className="actions">
         {user ? <span className="muted">{user.display_name}</span> : null}
