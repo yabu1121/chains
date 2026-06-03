@@ -31,6 +31,15 @@ const en = {
     somethingWrong: "Something went wrong",
     couldNotSend: "Could not send request",
   },
+  addFriendDialog: {
+    title: "Send a friend request",
+    to: (name: string) => `To ${name}`,
+    commentLabel: "Comment (optional)",
+    commentPlaceholder: "Add a hello or how you know each other…",
+    chars: (n: number) => `${n}/150`,
+    send: "Send request",
+    sending: "Sending…",
+  },
   legal: {
     terms: "Terms",
     privacy: "Privacy policy",
@@ -215,6 +224,15 @@ const ja: Dict = {
     language: "言語",
     somethingWrong: "エラーが発生しました",
     couldNotSend: "リクエストを送信できませんでした",
+  },
+  addFriendDialog: {
+    title: "フレンド申請を送る",
+    to: (name: string) => `${name} さんへ`,
+    commentLabel: "コメント（任意）",
+    commentPlaceholder: "ひとことや、どこで知り合ったかなど…",
+    chars: (n: number) => `${n}/150`,
+    send: "申請を送る",
+    sending: "送信中…",
   },
   legal: {
     terms: "利用規約",

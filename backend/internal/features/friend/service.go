@@ -3,6 +3,7 @@ package friend
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -45,8 +46,10 @@ func NewService(store store, cache *Cache) *Service {
 	return &Service{store: store, cache: cache}
 }
 
-// SendRequest creates a pending friend request from requester to addressee.
-func (s *Service) SendRequest(ctx context.Context, requesterID, addresseeID uuid.UUID) (*RequestSummary, error) {
+// SendRequest creates a pending friend request from requester to addressee,
+// with an optional short message.
+func (s *Service) SendRequest(ctx context.Context, requesterID, addresseeID uuid.UUID, message string) (*RequestSummary, error) {
+	message = strings.TrimSpace(message)
 	if requesterID == addresseeID {
 		return nil, httperr.BadRequest("self_request", "you cannot send a friend request to yourself")
 	}
@@ -85,6 +88,7 @@ func (s *Service) SendRequest(ctx context.Context, requesterID, addresseeID uuid
 		RequesterID: requesterID,
 		AddresseeID: addresseeID,
 		Status:      models.FriendshipPending,
+		Message:     message,
 	}
 	// The block check above is a fast/friendly path; this insert re-checks the
 	// block while holding row locks on the pair, so a block committing
@@ -257,6 +261,7 @@ func (s *Service) ListIncomingRequests(ctx context.Context, userID uuid.UUID) ([
 		out = append(out, RequestSummary{
 			RequestID: rows[i].ID,
 			User:      userSummary(rows[i].Requester),
+			Message:   rows[i].Message,
 			CreatedAt: rows[i].CreatedAt,
 		})
 	}

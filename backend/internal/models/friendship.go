@@ -21,6 +21,9 @@ type Friendship struct {
 	RequesterID uuid.UUID        `gorm:"type:uuid;not null"`
 	AddresseeID uuid.UUID        `gorm:"type:uuid;not null"`
 	Status      FriendshipStatus `gorm:"type:text;not null"`
+	// Message is an optional note the requester attached when sending the
+	// request. Empty string means no message.
+	Message     string `gorm:"type:text;not null;default:''"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	AcceptedAt  *time.Time

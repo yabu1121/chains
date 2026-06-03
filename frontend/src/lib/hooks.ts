@@ -82,10 +82,13 @@ export async function searchUsers(
   return data.results;
 }
 
-export async function sendRequest(addresseeId: string): Promise<void> {
+export async function sendRequest(
+  addresseeId: string,
+  message = "",
+): Promise<void> {
   await apiFetch("/api/friends/requests", {
     method: "POST",
-    body: { addressee_id: addresseeId },
+    body: { addressee_id: addresseeId, message },
   });
   await revalidateAll();
 }
