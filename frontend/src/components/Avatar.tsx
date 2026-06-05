@@ -18,8 +18,8 @@ export function Avatar({ user, size = 36 }: { user: AvatarUser; size?: number })
   if (user.avatar_updated_at) {
     return (
       <span
-        className="avatar"
-        style={{ width: size, height: size, padding: 0, overflow: "hidden" }}
+        className="avatar p-0 overflow-hidden"
+        style={{ width: size, height: size }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -27,7 +27,7 @@ export function Avatar({ user, size = 36 }: { user: AvatarUser; size?: number })
           alt={user.display_name}
           width={size}
           height={size}
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          className="w-full h-full object-cover block"
         />
       </span>
     );

@@ -95,16 +95,6 @@ export function NetworkGraph({
     focusedRef.current = false;
   }, [graph]);
 
-  // Mobile / touch: render fewer things and don't repaint continuously.
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 768px), (pointer: coarse)");
-    const sync = () => setIsMobile(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
   // Current visible graph-space rectangle (with margin), recomputed each frame
   // in onRenderFramePre. Used to cull off-screen nodes/links so only the
   // people around the current view are drawn — and it follows you as you pan.
@@ -184,12 +174,15 @@ export function NetworkGraph({
   // Pending (request) edges are drawn as marching-ants dashes. When any exist
   // we keep the canvas repainting every frame (autoPauseRedraw off) so the
   // dashes flow; otherwise we let the graph idle. Held still for reduced motion.
+  //
+  // This runs on touch devices too. An earlier `&& !isMobile` guard froze the
+  // dashes whenever a phone wasn't being actively dragged — which read as the
+  // graph "dying" the instant it settled. We accept the extra repaint cost so
+  // the network stays alive on mobile; reduced-motion users still get a still
+  // frame, and with no pending edges there is nothing to animate either way.
   const reduce = prefersReducedMotion();
   const hasPending = data.links.some((l) => l.pending);
-  // On mobile, don't keep the canvas repainting for the marching-ants dashes:
-  // the continuous redraw is a big battery/FPS cost. The dashed arrow still
-  // renders (just held still), and autoPauseRedraw lets the graph idle.
-  const animateEdges = hasPending && !reduce && !isMobile;
+  const animateEdges = hasPending && !reduce;
 
   useEffect(() => {
     const cache = imgCacheRef.current;
@@ -211,30 +204,12 @@ export function NetworkGraph({
 
   return (
     <>
-    <div
-      ref={panelRef}
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-          padding: "16px 20px 0",
-        }}
-      >
-        <h2 className="section-title" style={{ margin: 0 }}>
+    <div ref={panelRef} className="flex-1 min-h-0 flex flex-col">
+      <div className="flex justify-between items-center mb-3 px-5 pt-4 pb-0">
+        <h2 className="section-title m-0">
           {t.network.title}
         </h2>
-        <div
-          style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}
-        >
+        <div className="flex items-center gap-[14px] flex-wrap">
           {graphLanguages.length > 0 ? (
             <Select
               value={language}
@@ -246,7 +221,7 @@ export function NetworkGraph({
               ]}
             />
           ) : null}
-          <div className="muted" style={{ fontSize: 13 }}>
+          <div className="muted text-[13px]">
             <Legend color={COLORS.self} label={t.network.legendYou} />
             <Legend color={COLORS.friend} label={t.network.legendFriends} />
             <Legend color={COLORS.other} label={t.network.legendEveryone} />
@@ -256,37 +231,25 @@ export function NetworkGraph({
       </div>
 
       {error ? (
-        <p className="error" style={{ padding: "0 20px" }}>
+        <p className="error px-5">
           {t.network.couldNotLoad}
         </p>
       ) : isLoading || !graph ? (
-        <p className="empty" style={{ padding: "0 20px" }}>
+        <p className="empty px-5">
           {t.network.loading}
         </p>
       ) : data.nodes.length === 0 ? (
-        <p className="empty" style={{ padding: "0 20px" }}>
+        <p className="empty px-5">
           {t.network.empty}
         </p>
       ) : (
         <>
-          <p
-            className="muted"
-            style={{ marginTop: 0, fontSize: 13, padding: "0 20px" }}
-          >
+          <p className="muted mt-0 text-[13px] px-5">
             {data.nodes.length} people · {data.links.length} connections
             {graph.truncated ? " (showing a capped subset)" : ""}
             {language ? ` · ${matchCount} use ${language}` : ""}
           </p>
-          <div
-            ref={ref}
-            className="graph-canvas"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflow: "hidden",
-              background: "#ffffff",
-            }}
-          >
+          <div ref={ref} className="graph-canvas flex-1 min-h-0 overflow-hidden bg-white">
             {size.width > 0 && size.height > 0 ? (
               <ForceGraph2D
                 ref={fgRef}
@@ -449,10 +412,7 @@ export function NetworkGraph({
               />
             ) : null}
           </div>
-          <p
-            className="muted"
-            style={{ fontSize: 12, margin: 0, padding: "8px 20px" }}
-          >
+          <p className="muted text-xs m-0 px-5 py-2">
             Tap a node to view their profile · scroll to zoom · drag to pan.
           </p>
         </>
@@ -479,25 +439,14 @@ function Legend({
   dashed?: boolean;
 }) {
   return (
-    <span style={{ marginLeft: 14, whiteSpace: "nowrap" }}>
+    <span className="ml-[14px] whitespace-nowrap">
       <span
-        style={{
-          display: "inline-block",
-          verticalAlign: "middle",
-          marginRight: 5,
-          ...(dashed
-            ? {
-                width: 14,
-                height: 0,
-                borderTop: `1.5px dashed ${color}`,
-              }
-            : {
-                width: 9,
-                height: 9,
-                borderRadius: "50%",
-                background: color,
-              }),
-        }}
+        className="inline-block align-middle mr-[5px]"
+        style={
+          dashed
+            ? { width: 14, height: 0, borderTop: `1.5px dashed ${color}` }
+            : { width: 9, height: 9, borderRadius: "50%", background: color }
+        }
       />
       {label}
     </span>

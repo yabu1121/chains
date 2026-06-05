@@ -12,6 +12,7 @@ import { Person } from "@/components/Person";
 import { FindPeople } from "@/components/FindPeople";
 import { QRInvite } from "@/components/QRInvite";
 import { NetworkGraph } from "@/components/NetworkGraph";
+import { BridgeToast } from "@/components/BridgeToast";
 import { ProfileEditor } from "@/components/ProfileEditor";
 import { ProfileModal } from "@/components/ProfileModal";
 import { LegalDoc } from "@/components/LegalDoc";
@@ -27,6 +28,7 @@ import {
   useIncomingRequests,
   useOutgoingRequests,
   useIncomingCount,
+  type BridgeInfo,
 } from "@/lib/hooks";
 
 // Top-level navigation. Friends/Requests/Find are nested inside the Friends
@@ -160,11 +162,8 @@ function Dashboard() {
                 <NetworkGraph onEditProfile={() => changeTab("settings")} />
               ) : null}
               {tab === "news" ? (
-                <div
-                  className="card"
-                  style={{ textAlign: "center", padding: "48px 24px" }}
-                >
-                  <h2 style={{ marginTop: 0 }}>{t.nav.news}</h2>
+                <div className="card text-center px-6 py-12">
+                  <h2 className="mt-0">{t.nav.news}</h2>
                   <p className="muted">{t.nav.comingSoon}</p>
                 </div>
               ) : null}
@@ -342,16 +341,8 @@ function FriendsTab() {
 
   return (
     <div className="card" ref={cardRef}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-        <h2 className="section-title" style={{ margin: 0 }}>
+      <div className="flex justify-between items-center gap-2 flex-wrap">
+        <h2 className="section-title m-0">
           {t.friends.yourFriends}
         </h2>
         {availableLanguages.length > 0 ? (
@@ -407,6 +398,15 @@ function RequestsTab() {
   const { requests: incoming, isLoading: loadingIn } = useIncomingRequests();
   const { requests: outgoing, isLoading: loadingOut } = useOutgoingRequests();
   const { t } = useI18n();
+  // When accepting a request bridges two clusters, the backend tells us so and
+  // we surface a brief celebration. New object identity each time → the toast's
+  // auto-dismiss timer restarts for back-to-back bridges.
+  const [bridge, setBridge] = useState<BridgeInfo | null>(null);
+
+  async function onAccept(requestId: string) {
+    const result = await acceptRequest(requestId);
+    if (result) setBridge({ ...result });
+  }
   const inCardRef = useReveal<HTMLDivElement>();
   const outCardRef = useReveal<HTMLDivElement>({ delay: 90 });
   const inListRef = useStagger<HTMLDivElement>(incoming.length);
@@ -430,7 +430,7 @@ function RequestsTab() {
                 arrow="in"
                 actions={
                   <>
-                    <button onClick={() => acceptRequest(r.request_id)}>
+                    <button onClick={() => onAccept(r.request_id)}>
                       {t.friends.accept}
                     </button>
                     <button
@@ -474,6 +474,8 @@ function RequestsTab() {
           </div>
         )}
       </div>
+
+      <BridgeToast bridge={bridge} onDismiss={() => setBridge(null)} />
     </>
   );
 }

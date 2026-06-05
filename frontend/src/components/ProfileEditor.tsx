@@ -240,12 +240,12 @@ export function ProfileEditor() {
       <h2 className="section-title">{t.editor.title}</h2>
 
       <label>{t.common.language}</label>
-      <div style={{ maxWidth: 200, marginBottom: 4 }}>
+      <div className="max-w-[200px] mb-1">
         <LanguageSwitcher fullWidth />
       </div>
 
       <label>{t.editor.photo}</label>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <div className="flex items-center gap-[14px]">
         {user ? (
           <Avatar
             user={{
@@ -257,7 +257,7 @@ export function ProfileEditor() {
             size={64}
           />
         ) : null}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => fileRef.current?.click()}
@@ -281,7 +281,7 @@ export function ProfileEditor() {
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
           onChange={onPickAvatar}
-          style={{ display: "none" }}
+          className="hidden"
         />
       </div>
       {avatarError ? <p className="error">{avatarError}</p> : null}
@@ -328,34 +328,22 @@ export function ProfileEditor() {
         max={new Date().toISOString().slice(0, 10)}
         onChange={(e) => set("birth_date", e.target.value)}
       />
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 16,
-          marginTop: 8,
-          fontSize: 14,
-        }}
-      >
-        <label
-          style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}
-        >
+      <div className="flex flex-wrap gap-4 mt-2 text-sm">
+        <label className="flex items-center gap-[6px] m-0">
           <input
             type="checkbox"
             checked={form.show_age}
             onChange={(e) => set("show_age", e.target.checked)}
-            style={{ width: "auto" }}
+            className="w-auto"
           />
           {t.editor.showAge}
         </label>
-        <label
-          style={{ display: "flex", alignItems: "center", gap: 6, margin: 0 }}
-        >
+        <label className="flex items-center gap-[6px] m-0">
           <input
             type="checkbox"
             checked={form.show_birth_date}
             onChange={(e) => set("show_birth_date", e.target.checked)}
-            style={{ width: "auto" }}
+            className="w-auto"
           />
           {t.editor.showBirthDate}
         </label>
@@ -379,34 +367,18 @@ export function ProfileEditor() {
         ).map((lang) => ({ value: lang, label: lang }))}
       />
       {form.languages.length > 0 ? (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+        <div className="flex flex-wrap gap-[6px] mt-2">
           {form.languages.map((lang) => (
             <span
               key={lang}
-              style={{
-                background: "var(--panel-2)",
-                border: "1px solid var(--border)",
-                borderRadius: 999,
-                padding: "3px 6px 3px 12px",
-                fontSize: 13,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
+              className="inline-flex items-center gap-[6px] bg-panel-2 border border-border rounded-full pl-3 pr-[6px] py-[3px] text-[13px]"
             >
               {lang}
               <button
                 type="button"
                 onClick={() => removeLanguage(lang)}
                 aria-label={t.editor.removeLang(lang)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "var(--muted)",
-                  padding: "0 4px",
-                  fontSize: 15,
-                  lineHeight: 1,
-                }}
+                className="border-0 bg-transparent text-muted px-1 py-0 text-[15px] leading-none"
               >
                 ×
               </button>
@@ -415,22 +387,22 @@ export function ProfileEditor() {
         </div>
       ) : null}
 
-      <label style={{ marginTop: 4 }}>{t.editor.linksVisibility}</label>
-      <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>
+      <label className="mt-1">{t.editor.linksVisibility}</label>
+      <p className="muted mt-[-4px] text-[13px]">
         {t.editor.linksVisibilityDesc}
       </p>
       {LINK_FIELDS.map((f) => (
-        <div key={f.key} style={{ marginBottom: 10 }}>
+        <div key={f.key} className="mb-[10px]">
           <label htmlFor={f.key}>{t.editor[f.labelKey]}</label>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div className="flex gap-2 items-center">
             <input
               id={f.key}
               value={form[f.key]}
               onChange={(e) => set(f.key, e.target.value)}
               placeholder={f.placeholder}
-              style={{ flex: 1, minWidth: 0 }}
+              className="flex-1 min-w-0"
             />
-            <div style={{ width: 150, flexShrink: 0 }}>
+            <div className="w-[150px] flex-shrink-0">
               <Select
                 fullWidth
                 value={form[f.visKey]}
@@ -443,24 +415,24 @@ export function ProfileEditor() {
         </div>
       ))}
 
-      <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 12 }}>
-        <button className="primary" type="submit" disabled={status === "saving"} style={{ width: "auto" }}>
+      <div className="mt-[18px] flex items-center gap-3">
+        <button className="primary w-auto" type="submit" disabled={status === "saving"}>
           {status === "saving" ? t.editor.saving : t.editor.save}
         </button>
-        {status === "saved" ? <span style={{ color: "var(--ok)" }}>{t.editor.saved}</span> : null}
+        {status === "saved" ? <span className="text-ok">{t.editor.saved}</span> : null}
       </div>
       {error ? <p className="error">{error}</p> : null}
     </form>
 
-    <section className="card" style={{ marginTop: 18, borderColor: "var(--danger, #d9534f)" }}>
-      <h3 style={{ marginTop: 0 }}>{t.editor.deleteAccount}</h3>
+    <section className="card mt-[18px] border-danger">
+      <h3 className="mt-0">{t.editor.deleteAccount}</h3>
       <p className="muted">{t.editor.deleteDesc}</p>
       {!confirmingDelete ? (
         <button type="button" className="ghost" onClick={() => setConfirmingDelete(true)}>
           {t.editor.deleteMyAccount}
         </button>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 360 }}>
+        <div className="flex flex-col gap-[10px] max-w-[360px]">
           <label>
             {t.editor.confirmPassword}
             <input
@@ -471,11 +443,10 @@ export function ProfileEditor() {
             />
           </label>
           {deleteError ? <p className="error">{deleteError}</p> : null}
-          <div style={{ display: "flex", gap: 10 }}>
+          <div className="flex gap-[10px]">
             <button
               type="button"
-              className="primary"
-              style={{ width: "auto", background: "var(--danger, #d9534f)" }}
+              className="primary w-auto bg-danger"
               disabled={deleting || deletePassword.length === 0}
               onClick={onDeleteAccount}
             >

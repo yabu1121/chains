@@ -42,18 +42,11 @@ export function QRInvite() {
   return (
     <div className="card" ref={cardRef}>
       <h2 className="section-title">{t.qr.title}</h2>
-      <p className="muted" style={{ marginTop: 0, fontSize: 14 }}>
+      <p className="muted mt-0 text-sm">
         {t.qr.desc}
       </p>
-      <div style={{ display: "flex", justifyContent: "center", padding: "12px 0" }}>
-        <div
-          style={{
-            background: "#fff",
-            padding: 16,
-            borderRadius: 12,
-            border: "1px solid var(--border)",
-          }}
-        >
+      <div className="flex justify-center py-3">
+        <div className="bg-white p-4 rounded-xl border border-border">
           {link ? (
             <QRCodeSVG
               value={link}
@@ -64,20 +57,12 @@ export function QRInvite() {
               bgColor="#ffffff"
             />
           ) : (
-            <div style={{ width: 208, height: 208 }} />
+            <div className="w-52 h-52" />
           )}
         </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          justifyContent: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        <span className="muted" style={{ fontSize: 13, wordBreak: "break-all" }}>
+      <div className="flex gap-2 items-center justify-center flex-wrap">
+        <span className="muted text-[13px] break-all">
           {origin ? `${origin}/add/${user.username}` : "…"}
         </span>
         <button type="button" onClick={copy} disabled={!link}>

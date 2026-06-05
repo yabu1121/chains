@@ -25,6 +25,7 @@ type store interface {
 	DeleteFriendship(ctx context.Context, id uuid.UUID) error
 	DeleteFriendshipBetween(ctx context.Context, a, b uuid.UUID) (int64, error)
 	ListAcceptedFriendships(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
+	AcceptedEdges(ctx context.Context) ([]Edge, error)
 	LanguagesByUsers(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]string, error)
 	ListPendingIncoming(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
 	ListPendingOutgoing(ctx context.Context, userID uuid.UUID) ([]models.Friendship, error)
@@ -114,10 +115,23 @@ func (s *Service) SendRequest(ctx context.Context, requesterID, addresseeID uuid
 }
 
 // AcceptRequest accepts a pending request that is addressed to userID.
-func (s *Service) AcceptRequest(ctx context.Context, userID, requestID uuid.UUID) error {
+// AcceptRequest accepts a pending request and, when the new friendship joins two
+// previously-separate clusters of the global graph, returns a BridgeInfo so the
+// UI can celebrate the moment. Returns (nil, nil) for an ordinary accept that
+// only closes a cycle within an already-connected component.
+func (s *Service) AcceptRequest(ctx context.Context, userID, requestID uuid.UUID) (*BridgeInfo, error) {
 	f, err := s.loadPendingForAddressee(ctx, userID, requestID)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	// Snapshot the accepted graph BEFORE this edge becomes accepted, so the
+	// detector sees the world without (requester, addressee). The pending row
+	// we're about to accept is naturally excluded — AcceptedEdges only returns
+	// rows already in the accepted state. (A concurrent accept landing in this
+	// tiny window could at worst mislabel a bridge; harmless for a toast.)
+	edges, err := s.store.AcceptedEdges(ctx)
+	if err != nil {
+		return nil, httperr.Internal("could not load graph").Wrap(err)
 	}
 	// Compare-and-set: only flip the row if it is still pending and addressed
 	// to this user. This closes the TOCTOU between the load above and the
@@ -125,13 +139,13 @@ func (s *Service) AcceptRequest(ctx context.Context, userID, requestID uuid.UUID
 	// than letting two operations both "succeed".
 	n, err := s.store.AcceptFriendship(ctx, f.ID, userID, time.Now())
 	if err != nil {
-		return httperr.Internal("could not accept request").Wrap(err)
+		return nil, httperr.Internal("could not accept request").Wrap(err)
 	}
 	if n == 0 {
-		return httperr.Conflict("not_pending", "this request is no longer pending")
+		return nil, httperr.Conflict("not_pending", "this request is no longer pending")
 	}
 	s.cache.InvalidatePair(ctx, f.RequesterID, f.AddresseeID)
-	return nil
+	return detectBridge(edges, f.RequesterID, f.AddresseeID), nil
 }
 
 // RejectRequest deletes a pending request. The caller may be the addressee

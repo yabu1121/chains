@@ -67,16 +67,16 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <div style={{ marginTop: 20 }}>
+        <div className="mt-5">
           <button className="primary" type="submit" disabled={submitting}>
             {submitting ? t.login.submitting : t.login.submit}
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
-        <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
+        <p className="muted mt-4 text-center">
           {t.login.noAccount} <Link href="/register">{t.login.createOne}</Link>
         </p>
-        <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
+        <p className="muted mt-1 text-center">
           <Link href="/terms">{t.legal.terms}</Link> ·{" "}
           <Link href="/privacy">{t.legal.privacy}</Link>
         </p>

@@ -140,19 +140,18 @@ export function AvatarCropper({
   return createPortal(
     <div className="modal-overlay" onClick={onCancel}>
       <div
-        className="modal-card"
+        className="modal-card max-w-[360px]"
         role="dialog"
         aria-modal="true"
         aria-label={t.cropper.title}
         onClick={(e) => e.stopPropagation()}
         ref={dialogRef}
-        style={{ maxWidth: 360 }}
       >
         <button className="modal-close" onClick={onCancel} aria-label={t.common.close}>
           ×
         </button>
         <h2 className="section-title">{t.cropper.title}</h2>
-        <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>
+        <p className="muted mt-[-4px] text-[13px]">
           {t.cropper.desc}
         </p>
 
@@ -194,23 +193,22 @@ export function AvatarCropper({
             handleZoom(Number(e.target.value))
           }
           aria-label="Zoom"
-          style={{ width: VIEWPORT, marginTop: 14 }}
+          className="mt-[14px]"
+          style={{ width: VIEWPORT }}
         />
 
-        <div style={{ marginTop: 14, display: "flex", gap: 8 }}>
+        <div className="mt-[14px] flex gap-2">
           <button
-            className="primary"
+            className="primary w-auto"
             type="button"
             onClick={confirm}
-            style={{ width: "auto" }}
           >
             {t.cropper.usePhoto}
           </button>
           <button
-            className="ghost"
+            className="ghost w-auto"
             type="button"
             onClick={onCancel}
-            style={{ width: "auto" }}
           >
             {t.common.cancel}
           </button>

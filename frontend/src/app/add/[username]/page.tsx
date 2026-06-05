@@ -46,7 +46,7 @@ function AddByUsername() {
     <>
       <TopBrandBar />
       <div className="container center-narrow">
-        <h1 className="auth-wordmark" style={{ marginBottom: 24 }}>
+        <h1 className="auth-wordmark mb-6">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="auth-logo" src="/chains-logo.png" alt="chains" />
         </h1>
@@ -58,7 +58,7 @@ function AddByUsername() {
                 ? t.add.notFound
                 : t.add.couldNotLoad}
             </p>
-            <p style={{ marginTop: 12 }}>
+            <p className="mt-3">
               <Link href="/friends">{t.add.backToChains}</Link>
             </p>
           </>
@@ -71,21 +71,20 @@ function AddByUsername() {
               isSelf ? (
                 <Link href="/friends">{t.add.ownCode}</Link>
               ) : isFriend ? (
-                <span style={{ color: "var(--ok)" }}>
+                <span className="text-ok">
                   {t.add.alreadyFriends}
                 </span>
               ) : requested ? (
                 <div>
-                  <p style={{ color: "var(--ok)", margin: "0 0 8px" }}>
+                  <p className="text-ok mt-0 mb-2">
                     {t.add.requestSent}
                   </p>
                   <Link href="/friends">{t.add.backToChainsPlain}</Link>
                 </div>
               ) : (
                 <button
-                  className="primary"
+                  className="primary w-auto"
                   onClick={() => setShowDialog(true)}
-                  style={{ width: "auto" }}
                 >
                   {t.common.addFriend}
                 </button>

@@ -1,42 +1,91 @@
-:root {
-  /* Warm paper base instead of cool grey — reads as an edited page, not a
-     default SaaS dashboard. Ink text is near-black for editorial contrast. */
-  --bg: #faf8f4;
-  --panel: #ffffff;
-  --panel-2: #f1eee8;
-  --border: #e6e1d8;
-  --ink: #16181d;
-  --text: #16181d;
-  --muted: #5b616f; /* ~5.4:1 on warm paper — AA for small mono captions */
-  /* Accent = 藍 / indigo ink (fountain-pen / blueprint / indigo-dye). A warm,
-     analog, grown-up blue — used as a spark on active states & key affordances,
-     never as a fill. Ink stays the dominant colour. */
-  --accent: #2d4f7c;
-  --accent-press: #223c5e;
-  --accent-soft: rgba(45, 79, 124, 0.1); /* tinted pill / chip backgrounds */
-  --danger: #b8412c; /* warm vermilion, matches the analog palette */
-  --ok: #2f6a4f;
-  --radius: 14px;
-  --sidebar-w: 240px;
-  --bottombar-h: 60px;
+/* Tailwind v4. We import theme + utilities but deliberately NOT preflight: the
+   app ships its own resets/base styles (below), and Tailwind's preflight would
+   strip element defaults (list markers, heading sizes) that the legal pages and
+   editorial type rely on. The one preflight rule we do want — a default
+   border-style so the `border` utilities are visible — is added in @layer base. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 
-  /* Type. Latin/English renders in JetBrains Mono (--font-mono, injected by
-     layout.tsx); Japanese glyphs fall through to IBM Plex Sans JP (--font-jp).
-     Putting --font-mono first means English = JetBrains Mono, 日本語 = IBM Plex
-     Sans JP automatically (JetBrains Mono has no JP glyphs). */
-  --font-body:
-    var(--font-mono), var(--font-jp), ui-sans-serif, system-ui, sans-serif;
+/* ─────────────────────────────────────────────────────────────────────────
+   Design tokens. In Tailwind v4 these @theme entries generate utilities:
+   --color-ink → bg-ink / text-ink / border-ink, --color-accent → text-accent,
+   --font-display → font-display, --text-hero → text-hero, --radius-card →
+   rounded-card. One source of truth for the whole app.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-bg: #faf8f4; /* warm paper base — an edited page, not a SaaS grey */
+  --color-panel: #ffffff;
+  --color-panel-2: #f1eee8;
+  --color-border: #e6e1d8;
+  --color-ink: #16181d; /* near-black editorial ink */
+  --color-text: #16181d;
+  --color-muted: #5b616f; /* ~5.4:1 on paper — AA for small mono captions */
+  /* 藍 / indigo ink — a warm, analog blue used as a spark, never a fill. */
+  --color-accent: #2d4f7c;
+  --color-accent-press: #223c5e;
+  --color-accent-soft: rgba(45, 79, 124, 0.1);
+  --color-danger: #b8412c; /* warm vermilion */
+  --color-ok: #2f6a4f;
+
+  /* Latin/English renders in JetBrains Mono (--font-mono from layout.tsx);
+     Japanese glyphs fall through to IBM Plex Sans JP (--font-jp). */
+  --font-body: var(--font-mono), var(--font-jp), ui-sans-serif, system-ui,
+    sans-serif;
   --font-display: var(--font-body);
 
   /* Editorial type scale — big, decisive jumps so headings dominate. */
-  --step-hero: clamp(2.75rem, 6vw, 4.5rem); /* login / page heroes */
-  --step-h1: clamp(1.75rem, 3.5vw, 2.5rem); /* section heroes (Fraunces) */
-  --step-h2: 1.5rem; /* card titles when shown large */
+  --text-hero: clamp(2.75rem, 6vw, 4.5rem);
+  --text-h1: clamp(1.75rem, 3.5vw, 2.5rem);
+  --text-h2: 1.5rem;
 
-  /* Brand fill for primary buttons, active nav, avatars: solid ink, for a
-     letterpress / printed-matter feel. The indigo --accent is the spark. */
-  --grad: var(--ink);
+  --radius-card: 14px;
 }
+
+/* Token aliases. A handful of raw rules that can't be expressed as utilities —
+   SVG fills (the chain background), the <body>/<html> base, the responsive
+   @media nav overrides, and keyframes — still reference these short names. They
+   resolve to the @theme tokens above, so there is a single source of truth. */
+:root {
+  --bg: var(--color-bg);
+  --panel: var(--color-panel);
+  --panel-2: var(--color-panel-2);
+  --border: var(--color-border);
+  --ink: var(--color-ink);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --accent-press: var(--color-accent-press);
+  --accent-soft: var(--color-accent-soft);
+  --danger: var(--color-danger);
+  --ok: var(--color-ok);
+  --radius: var(--radius-card);
+  --step-hero: var(--text-hero);
+  --step-h1: var(--text-h1);
+  --step-h2: var(--text-h2);
+  --grad: var(--color-ink);
+  --sidebar-w: 240px;
+  --bottombar-h: 60px;
+}
+
+/* Preflight is disabled, but the `border` utilities need a default border-style
+   to be visible AND a 0 width so elements without an explicit border stay
+   borderless. This is the one preflight rule we keep — both halves matter:
+   without `border-width: 0`, every plain element would render the UA default
+   `medium` (3px) border once we force `border-style: solid`. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-width: 0;
+    border-style: solid;
+  }
+}
+
+/* Everything below lives in the `components` layer so Tailwind utilities (which
+   sit in the later `utilities` layer) can override these class/element styles
+   straight from the markup — e.g. `className="card mt-8"` now wins. */
+@layer components {
 
 * {
   box-sizing: border-box;
@@ -102,14 +151,8 @@ html {
 /* ── Ambient chain background + stacking ───────────────────────────── */
 
 .chain-bg {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  pointer-events: none;
   /* Faint, like a schematic pencilled on the paper. */
-  opacity: 0.12;
+  @apply fixed inset-0 w-full h-full z-0 pointer-events-none opacity-[0.12];
 }
 
 .chain-bg .cb-edge {
@@ -123,8 +166,7 @@ html {
 }
 
 .app-root {
-  position: relative;
-  z-index: 1;
+  @apply relative z-[1];
 }
 
 html,
@@ -167,216 +209,136 @@ a {
 }
 
 .container {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px 16px 64px;
+  @apply max-w-[720px] mx-auto px-4 pt-6 pb-16;
 }
 
 /* ── App shell: sidebar (desktop) + main, bottom bar (mobile) ───────── */
 
 .app-shell {
-  display: flex;
-  min-height: 100vh;
-  min-height: 100dvh;
+  @apply flex min-h-dvh;
 }
 
 .sidebar {
-  display: flex;
-  flex-direction: column;
-  width: var(--sidebar-w);
-  flex-shrink: 0;
-  padding: 20px 14px;
-  border-right: 1px solid var(--border);
-  background: var(--panel);
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  height: 100dvh;
+  @apply flex flex-col w-[240px] flex-shrink-0 px-[14px] py-5 border-r border-border bg-panel sticky top-0 h-dvh;
 }
 
 .sidebar .brand {
-  margin: 4px 8px 22px;
+  @apply mx-2 mt-1 mb-[22px];
 }
 
 .sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  @apply flex flex-col gap-1;
 }
 
 .sidebar-foot {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  @apply mt-auto pt-4 border-t border-border flex flex-col gap-[10px];
 }
 
 .app-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  @apply flex-1 min-w-0 flex flex-col min-h-dvh;
 }
 
 .content {
-  max-width: 1040px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 28px 28px 80px;
+  @apply max-w-[1040px] w-full mx-auto px-7 pt-7 pb-20;
 }
 
 /* Network tab: let the graph fill the whole main area (full width + height). */
 .content--full {
-  max-width: none;
-  flex: 1;
-  min-height: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
+  @apply max-w-none flex-1 min-h-0 p-0 flex flex-col;
 }
 
 /* The animated tab wrapper must also stretch so the graph can fill it. */
 .tab-panel--full {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  @apply flex-1 min-h-0 flex flex-col;
 }
 
 /* Let touch swipes pan/zoom the graph instead of scrolling the page. */
 .graph-canvas,
 .graph-canvas canvas {
-  touch-action: none;
-  overscroll-behavior: none;
+  @apply touch-none overscroll-none;
 }
 
 .bottombar {
-  display: none;
+  @apply hidden;
 }
 
 /* Nav buttons – shared by sidebar and bottom bar */
 .navbtn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 12px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
+  @apply relative flex items-center gap-2 w-full px-3 py-[10px] border-0 rounded-lg bg-transparent text-text font-medium text-left cursor-pointer;
   font: inherit;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
   transition: background 0.12s ease;
 }
 
 .navbtn:hover {
-  background: var(--panel-2);
+  @apply bg-panel-2;
 }
 
 /* Active fill is the sliding .nav-pill (framer-motion layoutId) sitting behind
    the label — so the button itself stays transparent. White-based sidebar:
    a soft tinted pill with the accent colour as text, not a solid dark fill. */
 .navbtn.active {
-  color: var(--accent);
-  font-weight: 600;
+  @apply text-accent font-semibold;
 }
 
 .nav-pill {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: 8px;
-  background: rgba(45, 79, 124, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(45, 79, 124, 0.18);
+  @apply absolute inset-0 z-0 rounded-lg bg-accent-soft shadow-[inset_0_0_0_1px_rgba(45,79,124,0.18)];
 }
 
 .navbtn .nav-label,
 .navbtn .badge {
-  position: relative;
-  z-index: 1;
+  @apply relative z-[1];
 }
 
 .topbar {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  @apply hidden items-center justify-between px-4 py-[14px] border-b border-border bg-panel;
 }
 
 .brand {
-  font-family: var(--font-display);
+  @apply font-display font-bold text-xl text-ink;
   font-optical-sizing: auto;
-  font-weight: 700;
-  font-size: 20px;
   letter-spacing: -0.01em;
-  color: var(--ink);
 }
 
 /* Wordmark logo in the sidebar / mobile topbar brand button. This wordmark is
    tall (≈1.6:1) and uses an outlined typeface, so it needs a generous size to
    stay legible. */
 .brand-logo {
-  display: block;
-  height: 30px;
-  width: auto;
+  @apply block h-[30px] w-auto;
 }
 
 /* The sidebar has room (240px) — show the wordmark large enough to read. */
 .sidebar .brand-logo {
-  height: 52px;
+  @apply h-[52px];
 }
 
 /* The brand doubles as a button (click → your profile); strip the chrome but
    keep the logo type, and let it sit left-aligned like the old text. */
 button.brand {
-  display: inline-block;
-  background: none;
-  border: 0;
-  padding: 0;
+  @apply inline-block bg-none border-0 p-0 text-left cursor-pointer;
   font-family: inherit;
-  text-align: left;
-  cursor: pointer;
 }
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 22px;
-  margin-bottom: 16px;
   /* Flat, crisp panel — depth comes from the warm border and paper grain, not
      a floaty drop shadow. */
-  box-shadow: none;
+  @apply rounded-card border border-border bg-panel p-[22px] mb-4;
   transition: border-color 0.18s ease;
   animation: fade-in-up 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .card:hover {
-  border-color: #d8d1c4;
+  @apply border-[#d8d1c4];
 }
 
 /* Area title: the one large editorial heading on an in-app view, in Fraunces.
    Gives the dashboard the type hierarchy the brief calls for (login is no longer
    the only place the display face appears). */
 .area-title {
-  font-family: var(--font-display);
+  @apply font-display text-h1 font-semibold text-ink;
   font-optical-sizing: auto;
-  font-weight: 600;
-  font-size: var(--step-h1);
   line-height: 1.04;
   letter-spacing: -0.02em;
   text-wrap: balance;
-  color: var(--ink);
   margin: 4px 0 18px;
 }
 
@@ -384,101 +346,62 @@ button.brand {
    indigo tick before it. Deliberate and printed-feeling, not the generic tiny
    grey caps of a default dashboard. */
 .section-title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 500;
-  text-transform: uppercase;
+  @apply flex items-center gap-[9px] text-[11px] font-medium uppercase text-muted;
   letter-spacing: 0.12em;
-  color: var(--muted);
   margin: 0 0 14px;
 }
 
 .section-title::before {
-  content: "";
-  width: 14px;
-  height: 2px;
-  flex: none;
-  background: var(--accent);
+  @apply content-[''] w-[14px] h-[2px] flex-none bg-accent;
 }
 
 .row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
+  @apply flex items-center justify-between gap-3 py-[10px] border-b border-border;
 }
 
 .row:last-child {
-  border-bottom: none;
+  @apply border-b-0;
 }
 
 .avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--grad);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-body);
-  font-weight: 500;
-  letter-spacing: 0.02em;
   /* Warm-paper initials on ink — reads like a stamped monogram. */
-  color: var(--bg);
-  margin-right: 10px;
+  @apply w-9 h-9 rounded-full bg-ink inline-flex items-center justify-center font-medium text-bg mr-[10px];
+  letter-spacing: 0.02em;
 }
 
 .person {
-  display: flex;
-  align-items: center;
-  min-width: 0;
+  @apply flex items-center min-w-0;
 }
 
 .person.clickable {
-  cursor: pointer;
-  border-radius: 8px;
+  @apply cursor-pointer rounded-lg;
   outline-offset: 2px;
 }
 
 .person.clickable:hover .name {
-  color: var(--accent);
+  @apply text-accent;
 }
 
 .person .name {
-  font-weight: 600;
+  @apply font-semibold;
   overflow-wrap: anywhere;
 }
 
 .person .email {
-  font-family: var(--font-body);
-  color: var(--muted);
-  font-size: 12.5px;
-  letter-spacing: -0.01em;
   /* Long handles/emails (no spaces) must break instead of widening the row. */
+  @apply text-muted text-[12.5px];
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
 .actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  @apply flex gap-2 flex-shrink-0;
 }
 
 input,
 select,
 textarea {
-  width: 100%;
-  padding: 10px 12px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  font-size: 15px;
+  @apply w-full px-3 py-[10px] bg-panel-2 border border-border rounded-lg text-text text-[15px];
   font-family: inherit;
   transition:
     border-color 0.18s ease,
@@ -486,16 +409,13 @@ textarea {
 }
 
 textarea {
-  line-height: 1.5;
-  resize: vertical;
+  @apply leading-normal resize-y;
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
+  @apply outline-none border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
 }
 
 /* Custom dropdown: drop the native arrow, add our own chevron + interactions. */
@@ -539,31 +459,16 @@ select option:checked {
 /* ── Custom animated select (see components/Select.tsx) ─────────────── */
 
 .select {
-  position: relative;
-  display: inline-block;
-  vertical-align: middle;
+  @apply relative inline-block align-middle;
 }
 
 .select.full {
-  display: block;
-  width: 100%;
+  @apply block w-full;
 }
 
 .select-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: auto;
-  padding: 10px 12px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
+  @apply inline-flex items-center justify-between gap-[10px] w-auto px-3 py-[10px] bg-panel-2 border border-border rounded-lg text-text text-[15px] text-left cursor-pointer;
   font: inherit;
-  font-size: 15px;
-  text-align: left;
-  cursor: pointer;
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease,
@@ -571,122 +476,78 @@ select option:checked {
 }
 
 .select.full .select-trigger {
-  width: 100%;
+  @apply w-full;
 }
 
 .select-trigger:hover:not(:disabled) {
-  border-color: var(--accent);
-  background-color: #ebe5db;
+  @apply border-accent bg-[#ebe5db];
 }
 
 .select-trigger:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
+  @apply outline-none border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
 }
 
 .select-trigger.open {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(45, 79, 124, 0.18);
+  @apply border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
 }
 
 .select-trigger:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 .select-value {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
 .select-value.placeholder {
-  color: var(--muted);
+  @apply text-muted;
 }
 
 .select-chevron {
-  flex-shrink: 0;
-  color: var(--muted);
+  @apply flex-shrink-0 text-muted;
 }
 
 .select-trigger.open .select-chevron {
-  color: var(--accent);
+  @apply text-accent;
 }
 
 .select-panel {
-  position: absolute;
-  z-index: 50;
-  top: calc(100% + 6px);
-  left: 0;
-  width: 100%;
-  min-width: max-content;
   /* Never let the panel spill past the viewport on a narrow phone. */
-  max-width: calc(100vw - 24px);
-  max-height: 280px;
-  overflow-y: auto;
-  margin: 0;
-  padding: 6px;
-  list-style: none;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 14px 36px rgba(16, 24, 40, 0.16);
+  @apply absolute z-50 left-0 w-full min-w-max max-w-[calc(100vw-24px)] max-h-[280px] overflow-y-auto m-0 p-[6px] list-none bg-panel border border-border rounded-[10px] shadow-[0_14px_36px_rgba(16,24,40,0.16)];
+  top: calc(100% + 6px);
 }
 
 .select-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--text);
-  cursor: pointer;
-  user-select: none;
+  @apply flex items-center justify-between gap-[10px] px-[10px] py-2 rounded-md text-sm text-text cursor-pointer select-none;
 }
 
 .select-option.active {
-  background: var(--panel-2);
+  @apply bg-panel-2;
 }
 
 .select-option.selected {
-  color: var(--accent);
-  font-weight: 600;
+  @apply text-accent font-semibold;
 }
 
 .select-option.disabled {
-  color: var(--muted);
-  cursor: not-allowed;
+  @apply text-muted cursor-not-allowed;
 }
 
 .select-option-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
 .select-check {
-  flex-shrink: 0;
-  color: var(--accent);
+  @apply flex-shrink-0 text-accent;
 }
 
 label {
-  display: block;
-  font-size: 13px;
-  color: var(--muted);
-  margin: 12px 0 6px;
+  @apply block text-[13px] text-muted mt-3 mb-[6px];
 }
 
 button {
+  @apply border border-border bg-panel-2 text-text px-[14px] py-2 rounded-lg cursor-pointer;
   font: inherit;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--text);
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
   transition:
     background 0.12s ease,
     transform 0.12s ease,
@@ -694,25 +555,19 @@ button {
 }
 
 button:hover {
-  background: #ebe5db;
+  @apply bg-[#ebe5db];
 }
 
 button:active:not(:disabled) {
-  transform: scale(0.95);
+  @apply scale-95;
 }
 
 button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  @apply opacity-50 cursor-not-allowed;
 }
 
 button.primary {
-  background: var(--grad);
-  border: none;
-  color: var(--bg);
-  width: 100%;
-  padding: 11px;
-  font-weight: 600;
+  @apply border-0 bg-ink text-bg w-full p-[11px] font-semibold;
   /* Tight, crisp seat instead of a coloured glow — an inked, pressed feel. */
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
   transition:
@@ -721,32 +576,23 @@ button.primary {
 }
 
 button.primary:hover {
-  background: #25282f;
+  @apply bg-[#25282f];
 }
 
 button.danger {
-  border-color: transparent;
-  color: var(--danger);
-  background: transparent;
+  @apply border-transparent text-danger bg-transparent;
 }
 
 button.ghost {
-  background: transparent;
-  border-color: transparent;
+  @apply bg-transparent border-transparent;
 }
 
 button.ghost:hover {
-  background: var(--panel-2);
+  @apply bg-panel-2;
 }
 
 .badge {
-  background: var(--accent);
-  color: #fff;
-  border-radius: 999px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  padding: 1px 8px;
-  margin-left: 6px;
+  @apply bg-accent text-white rounded-full text-xs tabular-nums px-2 py-px ml-[6px];
   animation: badge-pulse 1.8s ease-in-out infinite;
 }
 
@@ -767,7 +613,7 @@ button.ghost:hover {
 }
 
 .navbtn:active {
-  transform: scale(0.97);
+  @apply scale-[0.97];
 }
 
 /* Honour users who ask for less motion: drop the ambient layer and any
@@ -787,238 +633,152 @@ button.ghost:hover {
 }
 
 .error {
-  color: var(--danger);
-  font-size: 14px;
-  margin-top: 12px;
+  @apply text-danger text-sm mt-3;
 }
 
 /* Friends sub-tabs: a segmented control with a white pill sliding behind the
    active item (framer-motion layoutId). ────────────────────────────────── */
 .subtabs {
-  display: inline-flex;
-  gap: 4px;
-  margin-bottom: 16px;
-  padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel-2);
+  @apply inline-flex gap-1 mb-4 p-1 border border-border rounded-[10px] bg-panel-2;
 }
 
 .subtab {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--muted);
+  @apply relative inline-flex items-center gap-[6px] px-[14px] py-[6px] border-0 rounded-[7px] bg-transparent text-muted font-medium cursor-pointer;
   font: inherit;
-  font-weight: 500;
-  cursor: pointer;
   transition: color 0.12s ease;
 }
 
 .subtab:hover {
-  color: var(--text);
+  @apply text-text;
 }
 
 .subtab.active {
-  color: var(--accent);
-  font-weight: 600;
+  @apply text-accent font-semibold;
 }
 
 .subtab-pill {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: 7px;
-  background: var(--panel);
-  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.1);
+  @apply absolute inset-0 z-0 rounded-[7px] bg-panel shadow-[0_1px_3px_rgba(16,24,40,0.1)];
 }
 
 .subtab-label,
 .subtab .badge {
-  position: relative;
-  z-index: 1;
+  @apply relative z-[1];
 }
 
 /* Avatar cropper ───────────────────────────────────────────────────────── */
 .cropper-viewport {
-  position: relative;
-  margin: 10px auto 0;
-  overflow: hidden;
-  border-radius: 10px;
-  background: var(--panel-2);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
+  @apply relative mt-[10px] mx-auto overflow-hidden rounded-[10px] bg-panel-2 cursor-grab touch-none select-none;
 }
 
 .cropper-viewport:active {
-  cursor: grabbing;
+  @apply cursor-grabbing;
 }
 
 /* Inscribed circle showing how the square crop reads as a round avatar; the
    large translucent ring dims everything outside it (clipped to the square). */
 .cropper-ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow: 0 0 0 9999px rgba(255, 255, 255, 0.55);
-  pointer-events: none;
+  @apply absolute inset-0 rounded-full pointer-events-none shadow-[0_0_0_9999px_rgba(255,255,255,0.55)];
 }
 
 /* Profile view (shown in the network-node / brand modal) ───────────────── */
 .pv-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+  @apply flex items-center gap-[14px];
 }
 
 .pv-name {
-  font-family: var(--font-display);
+  @apply font-display font-semibold text-[22px] leading-[1.15];
   font-optical-sizing: auto;
-  font-weight: 600;
-  font-size: 22px;
   letter-spacing: -0.015em;
-  line-height: 1.15;
 }
 
 .pv-job {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 2px 10px;
-  border-radius: 999px;
-  background: rgba(45, 79, 124, 0.1);
-  color: var(--accent);
-  font-size: 13px;
-  font-weight: 600;
+  @apply inline-block mt-[6px] px-[10px] py-[2px] rounded-full bg-accent-soft text-accent text-[13px] font-semibold;
 }
 
 .pv-bio {
-  margin: 16px 0 0;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: var(--panel-2);
-  font-size: 14px;
-  line-height: 1.5;
-  white-space: pre-wrap;
+  @apply mt-4 px-[14px] py-3 rounded-[10px] bg-panel-2 text-sm leading-normal whitespace-pre-wrap;
 }
 
 .pv-section {
-  margin-top: 18px;
+  @apply mt-[18px];
 }
 
 .pv-details {
-  margin: 0;
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 6px 16px;
-  font-size: 14px;
+  @apply m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-[6px] text-sm;
 }
 
 .pv-detail-row {
-  display: contents;
+  @apply contents;
 }
 
 .pv-details dt {
-  color: var(--muted);
+  @apply text-muted;
 }
 
 .pv-details dd {
-  margin: 0;
+  @apply m-0;
 }
 
 .pv-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  @apply flex flex-wrap gap-[6px];
 }
 
 .pv-chip {
-  padding: 3px 10px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--panel-2);
-  font-size: 13px;
+  @apply px-[10px] py-[3px] border border-border rounded-full bg-panel-2 text-[13px];
 }
 
 .pv-links {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  @apply flex flex-col gap-2;
 }
 
 .pv-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-size: 14px;
+  @apply flex items-center justify-between gap-[10px] px-3 py-[9px] border border-border rounded-[10px] text-sm;
   transition:
     background 0.12s ease,
     border-color 0.12s ease;
 }
 
 .pv-link:hover {
-  background: var(--panel-2);
-  border-color: var(--accent);
+  @apply bg-panel-2 border-accent;
 }
 
 .pv-link-text {
-  min-width: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  @apply min-w-0 flex items-baseline gap-2;
 }
 
 .pv-link-icon {
-  flex-shrink: 0;
-  align-self: center;
+  @apply flex-shrink-0 self-center;
 }
 
 .pv-link-platform {
-  font-weight: 600;
-  flex-shrink: 0;
+  @apply font-semibold flex-shrink-0;
 }
 
 .pv-link-detail {
-  min-width: 0;
-  color: var(--muted);
-  font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @apply min-w-0 text-muted text-[13px] overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
 .pv-link-go {
-  color: var(--muted);
-  flex-shrink: 0;
+  @apply text-muted flex-shrink-0;
 }
 
 .pv-actions {
-  margin-top: 18px;
+  @apply mt-[18px];
 }
 
 /* Pending-request arrow: a dashed shaft whose ants march toward the head,
    continuously, to signal an in-flight friend request. Disabled for
    reduced-motion via the global rule above. */
 .req-arrow {
-  flex-shrink: 0;
-  overflow: visible;
+  @apply flex-shrink-0 overflow-visible;
 }
 
 .req-arrow--in {
-  color: var(--accent);
+  @apply text-accent;
 }
 
 .req-arrow--out {
-  color: var(--muted);
+  @apply text-muted;
 }
 
 .req-arrow-shaft {
@@ -1033,110 +793,81 @@ button.ghost:hover {
 }
 
 .muted {
-  color: var(--muted);
+  @apply text-muted;
 }
 
 .empty {
-  color: var(--muted);
-  padding: 12px 0;
-  font-size: 14px;
+  @apply text-muted text-sm py-3;
 }
 
 .center-narrow {
-  max-width: 380px;
-  margin: 64px auto;
+  @apply max-w-[380px] my-16 mx-auto;
 }
 
 /* ── Editorial auth (login / register) ──────────────────────────────── */
 
 /* Shared page-top bar: icon (links home) left, language switcher right. */
 .brandbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  max-width: 1040px;
-  margin: 0 auto;
-  padding: 16px 20px;
   /* Ease the bar in (and reserve its height) so it doesn't snap into place. */
+  @apply flex items-center justify-between gap-3 w-full max-w-[1040px] mx-auto px-5 py-4;
   animation: fade-in-down 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 .brandbar-mark {
-  display: inline-flex;
-  line-height: 0;
-  border-radius: 8px;
+  @apply inline-flex leading-none rounded-lg;
 }
 
 .brandbar-mark img {
-  display: block;
-  height: 34px;
-  width: auto;
+  @apply block h-[34px] w-auto;
 }
 
 .auth-page {
-  max-width: 400px;
-  margin: 0 auto;
+  @apply max-w-[400px] mx-auto;
   padding: clamp(40px, 8vh, 88px) 24px 64px;
 }
 
 .auth-hero {
   /* Quiet baseline rule under the wordmark — a hairline detail, not a banner. */
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 28px;
+  @apply pb-4 border-b border-border mb-7;
 }
 
 /* Restrained serif wordmark: characterful Fraunces at a confident — not
    oversized — size. The serif itself carries the personality, so no drama is
    needed. */
 .auth-wordmark {
-  margin: 0;
-  font-family: var(--font-display);
+  @apply m-0 font-display font-semibold text-[2.25rem] leading-none text-ink;
   font-optical-sizing: auto;
-  font-weight: 600;
-  font-size: 2.25rem;
-  line-height: 1;
   letter-spacing: -0.015em;
   text-wrap: balance;
-  color: var(--ink);
 }
 
 .auth-mark {
+  @apply text-accent;
   margin-right: 0.18em;
   font-size: 0.8em;
-  color: var(--accent);
 }
 
 /* Wordmark logo image (replaces the ⛓ chains text on the auth screens). */
 .auth-logo {
-  display: block;
+  @apply block w-auto;
   height: clamp(52px, 11vw, 72px);
-  width: auto;
 }
 
 /* A small, factual descriptor — what the product literally is, set in mono so
    it reads as a quiet caption rather than marketing copy. */
 .auth-eyebrow {
-  margin: 8px 0 0;
-  font-family: var(--font-body);
-  font-size: 12px;
+  @apply mt-2 text-xs text-muted;
   letter-spacing: 0.02em;
-  color: var(--muted);
 }
 
 /* Lift the form off the hero (mobile, stacked layout). */
 .auth-card {
-  margin-top: 32px;
-  width: 100%;
+  @apply mt-8 w-full;
 }
 
 /* Language switcher row under the form (mobile: centered). */
 .auth-foot {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
+  @apply flex justify-center mt-4;
 }
 
 /* Desktop: split the auth screen into two columns — brand on the left, form on
@@ -1199,40 +930,17 @@ button.ghost:hover {
 }
 
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(16, 24, 40, 0.45);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 50;
+  @apply fixed inset-0 flex items-center justify-center p-4 z-50 bg-[rgba(16,24,40,0.45)] backdrop-blur-[3px];
   animation: overlay-in 0.18s ease both;
 }
 
 .modal-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  width: 100%;
-  max-width: 420px;
-  position: relative;
-  box-shadow: 0 18px 50px rgba(16, 24, 40, 0.22);
+  @apply relative w-full max-w-[420px] p-5 rounded-card border border-border bg-panel shadow-[0_18px_50px_rgba(16,24,40,0.22)];
   animation: modal-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
 .modal-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  font-size: 20px;
-  line-height: 1;
-  padding: 4px 8px;
+  @apply absolute top-[10px] right-[10px] border-0 bg-transparent text-muted text-xl leading-none px-2 py-1;
 }
 
 /* ── Mobile: hide sidebar, show top bar + bottom tab bar ───────────── */
@@ -1324,3 +1032,36 @@ button.ghost:hover {
     max-width: 38vw;
   }
 }
+
+/* Bridge celebration — a calm, editorial toast pinned bottom-centre when an
+   accepted request joins two separate clusters of the network. Flat paper panel
+   with the indigo spark in the link mark, matching the card language. */
+.bridge-toast {
+  /* One soft, low shadow so it lifts off the page — the only floated surface in
+     the app, justified because it overlays content. */
+  @apply fixed left-1/2 bottom-10 -translate-x-1/2 z-[60] flex flex-col items-center text-center gap-3 w-[min(420px,calc(100vw-32px))] px-8 py-[30px] rounded-card border border-border bg-panel cursor-pointer shadow-[0_18px_48px_-16px_rgba(22,24,29,0.32)];
+}
+
+.bridge-toast__mark {
+  @apply flex-none;
+}
+
+.bridge-toast__title {
+  @apply m-0 font-display text-[22px] font-semibold leading-[1.15] text-ink;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.bridge-toast__body {
+  @apply m-0 max-w-[30ch] text-sm leading-normal text-muted;
+  text-wrap: balance;
+}
+
+/* Sit above the mobile bottom nav rather than under it. */
+@media (max-width: 768px) {
+  .bridge-toast {
+    bottom: calc(var(--bottombar-h) + 16px);
+  }
+}
+
+} /* end @layer components */

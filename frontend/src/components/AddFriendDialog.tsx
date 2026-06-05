@@ -67,15 +67,14 @@ export function AddFriendDialog({
         aria-label={t.addFriendDialog.title}
         onClick={(e) => e.stopPropagation()}
         ref={setCardRef}
-        style={{ maxWidth: 420 }}
       >
         <button className="modal-close" onClick={onClose} aria-label={t.common.close}>
           ×
         </button>
-        <h2 className="section-title" style={{ marginTop: 0 }}>
+        <h2 className="section-title mt-0">
           {t.addFriendDialog.title}
         </h2>
-        <p className="muted" style={{ marginTop: -4 }}>
+        <p className="muted mt-[-4px]">
           {t.addFriendDialog.to(displayName)}
         </p>
 
@@ -90,28 +89,26 @@ export function AddFriendDialog({
           rows={3}
           placeholder={t.addFriendDialog.commentPlaceholder}
         />
-        <div className="muted" style={{ textAlign: "right", fontSize: 12 }}>
+        <div className="muted text-right text-xs">
           {t.addFriendDialog.chars(message.length)}
         </div>
 
         {error ? <p className="error">{error}</p> : null}
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+        <div className="mt-3 flex gap-2">
           <button
-            className="primary"
+            className="primary w-auto"
             type="button"
             onClick={submit}
             disabled={sending}
-            style={{ width: "auto" }}
           >
             {sending ? t.addFriendDialog.sending : t.addFriendDialog.send}
           </button>
           <button
-            className="ghost"
+            className="ghost w-auto"
             type="button"
             onClick={onClose}
             disabled={sending}
-            style={{ width: "auto" }}
           >
             {t.common.cancel}
           </button>
