@@ -96,20 +96,14 @@ export default function RegisterPage() {
         />
         <label
           htmlFor="agree"
-          style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 8,
-            marginTop: 16,
-            cursor: "pointer",
-          }}
+          className="flex items-start gap-2 mt-4 cursor-pointer"
         >
           <input
             id="agree"
             type="checkbox"
             checked={agreed}
             onChange={(e) => setAgreed(e.target.checked)}
-            style={{ width: "auto", marginTop: 3 }}
+            className="w-auto mt-[3px]"
           />
           <span>
             {t.register.agreePre}
@@ -119,7 +113,7 @@ export default function RegisterPage() {
             {t.register.agreePost}
           </span>
         </label>
-        <div style={{ marginTop: 20 }}>
+        <div className="mt-5">
           <button
             className="primary"
             type="submit"
@@ -129,10 +123,10 @@ export default function RegisterPage() {
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
-        <p className="muted" style={{ marginTop: 16, textAlign: "center" }}>
+        <p className="muted mt-4 text-center">
           {t.register.haveAccount} <Link href="/login">{t.register.login}</Link>
         </p>
-        <p className="muted" style={{ marginTop: 4, textAlign: "center" }}>
+        <p className="muted mt-1 text-center">
           <Link href="/terms">{t.legal.terms}</Link> ·{" "}
           <Link href="/privacy">{t.legal.privacy}</Link>
         </p>

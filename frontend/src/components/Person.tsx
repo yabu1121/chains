@@ -41,19 +41,11 @@ export function Person({
         }
       >
         <Avatar user={user} />
-        <span style={{ minWidth: 0 }}>
+        <span className="min-w-0">
           <div className="name">{user.display_name}</div>
           <div className="email">{subtitle ?? `@${user.username}`}</div>
           {note ? (
-            <div
-              className="muted"
-              style={{
-                fontSize: 13,
-                marginTop: 2,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-              }}
-            >
+            <div className="muted text-[13px] mt-0.5 whitespace-pre-wrap break-words">
               “{note}”
             </div>
           ) : null}

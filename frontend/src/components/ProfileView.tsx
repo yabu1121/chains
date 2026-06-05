@@ -128,7 +128,7 @@ export function ProfileView({
     <div className="profile-view">
       <div className="pv-header">
         <Avatar user={profile} size={64} />
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <div className="pv-name">{profile.display_name}</div>
           <div className="muted">@{profile.username}</div>
           {profile.job_title ? (

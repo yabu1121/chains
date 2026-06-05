@@ -27,7 +27,7 @@ export function LegalDoc({
       {lang === "ja" ? ja : en}
 
       {backHref ? (
-        <p style={{ marginTop: 24 }}>
+        <p className="mt-6">
           <Link href={backHref}>← {t.common.back}</Link>
         </p>
       ) : null}

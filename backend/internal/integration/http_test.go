@@ -451,7 +451,7 @@ func TestHTTP_ProfileUpdateAndPublicView(t *testing.T) {
 	inc := decode[requestsResp](t, bob.do(http.MethodGet, "/api/friends/requests/incoming", nil))
 	require.Len(t, inc.Requests, 1)
 	rec = bob.do(http.MethodPost, "/api/friends/requests/"+inc.Requests[0].RequestID.String()+"/accept", nil)
-	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
 
 	friendView := decode[profileResp](t, bob.do(http.MethodGet, "/api/users/"+aliceID.String(), nil))
 	require.Equal(t, "https://alice.dev", friendView.PortfolioURL, "friends see friends-only links")
@@ -496,9 +496,19 @@ func TestHTTP_FriendRequestLifecycle(t *testing.T) {
 	}](t, bob.do(http.MethodGet, "/api/friends/requests/incoming/count", nil))
 	require.Equal(t, int64(1), count.Count)
 
-	// Bob accepts.
+	// Bob accepts. Alice and Bob were strangers, so this friendship bridges
+	// their two singleton clusters — the response carries a {1,1} BridgeInfo.
 	rec = bob.do(http.MethodPost, "/api/friends/requests/"+requestID.String()+"/accept", nil)
-	require.Equal(t, http.StatusNoContent, rec.Code, rec.Body.String())
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	accepted := decode[struct {
+		Bridge *struct {
+			YourSide  int `json:"your_side"`
+			TheirSide int `json:"their_side"`
+		} `json:"bridge"`
+	}](t, rec)
+	require.NotNil(t, accepted.Bridge)
+	require.Equal(t, 1, accepted.Bridge.YourSide)
+	require.Equal(t, 1, accepted.Bridge.TheirSide)
 
 	// Both now see each other as friends.
 	aliceFriends := decode[friendsResp](t, alice.do(http.MethodGet, "/api/friends", nil))

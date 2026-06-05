@@ -93,11 +93,30 @@ export async function sendRequest(
   await revalidateAll();
 }
 
-export async function acceptRequest(requestId: string): Promise<void> {
-  await apiFetch(`/api/friends/requests/${requestId}/accept`, {
-    method: "POST",
-  });
+/**
+ * BridgeInfo is returned when accepting a request joined two previously-separate
+ * clusters of the friendship graph. your_side / their_side are the sizes of the
+ * two groups the new friendship united (each includes its own endpoint).
+ */
+export interface BridgeInfo {
+  your_side: number;
+  their_side: number;
+}
+
+/**
+ * Accepts a friend request. Resolves to a BridgeInfo when the new friendship
+ * bridged two separate clusters (the UI celebrates this), or null for an
+ * ordinary accept within an already-connected group.
+ */
+export async function acceptRequest(
+  requestId: string,
+): Promise<BridgeInfo | null> {
+  const data = await apiFetch<{ bridge: BridgeInfo | null }>(
+    `/api/friends/requests/${requestId}/accept`,
+    { method: "POST" },
+  );
   await revalidateAll();
+  return data?.bridge ?? null;
 }
 
 export async function rejectRequest(requestId: string): Promise<void> {

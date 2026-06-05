@@ -90,7 +90,7 @@ export function ProfileModal({
                   <span className="muted">{t.profileModal.thisIsYou}</span>
                 )
               ) : isFriend ? (
-                <span style={{ color: "var(--ok)" }}>{t.profileModal.youAreFriends}</span>
+                <span className="text-ok">{t.profileModal.youAreFriends}</span>
               ) : (
                 <button
                   onClick={() => setShowDialog(true)}

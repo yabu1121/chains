@@ -67,10 +67,12 @@ func (h *Handler) Accept(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.svc.AcceptRequest(c.Request().Context(), userID, id); err != nil {
+	bridge, err := h.svc.AcceptRequest(c.Request().Context(), userID, id)
+	if err != nil {
 		return err
 	}
-	return c.NoContent(http.StatusNoContent)
+	// bridge is nil for an ordinary accept; marshals to {"bridge": null}.
+	return c.JSON(http.StatusOK, echo.Map{"bridge": bridge})
 }
 
 // Reject handles DELETE /friends/requests/:id (decline or cancel).

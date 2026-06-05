@@ -205,12 +205,11 @@ export function Select({
             ref={listRef}
             id={`${baseId}-list`}
             role="listbox"
-            className="select-panel"
+            className="select-panel origin-top"
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
             animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.96 }}
             transition={{ duration: reduce ? 0.12 : 0.18, ease: [0.16, 1, 0.3, 1] }}
-            style={{ transformOrigin: "top center" }}
           >
             {options.map((o, i) => (
               <motion.li

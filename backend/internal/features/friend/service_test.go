@@ -113,6 +113,16 @@ func (f *fakeStore) ListAcceptedFriendships(_ context.Context, userID uuid.UUID)
 	return out, nil
 }
 
+func (f *fakeStore) AcceptedEdges(_ context.Context) ([]Edge, error) {
+	var out []Edge
+	for _, fr := range f.friendships {
+		if fr.Status == models.FriendshipAccepted {
+			out = append(out, Edge{Source: fr.RequesterID, Target: fr.AddresseeID})
+		}
+	}
+	return out, nil
+}
+
 func (f *fakeStore) LanguagesByUsers(_ context.Context, _ []uuid.UUID) (map[uuid.UUID][]string, error) {
 	return map[uuid.UUID][]string{}, nil
 }
@@ -273,7 +283,7 @@ func TestAccept_NotAddressee(t *testing.T) {
 	id := seedFriendship(fs, a, b, models.FriendshipPending)
 	svc, _ := newTestService(t, fs)
 	// a is the requester, not the addressee, so a cannot accept.
-	err := svc.AcceptRequest(context.Background(), a, id)
+	_, err := svc.AcceptRequest(context.Background(), a, id)
 	assertHTTPStatus(t, err, 403, "not_addressee")
 }
 
@@ -282,9 +292,31 @@ func TestAccept_Success(t *testing.T) {
 	fs := newFakeStore(a, b)
 	id := seedFriendship(fs, a, b, models.FriendshipPending)
 	svc, _ := newTestService(t, fs)
-	require.NoError(t, svc.AcceptRequest(context.Background(), b, id))
+	// a and b were strangers, so accepting joins their two singleton clusters —
+	// a bridge of {1, 1}.
+	bridge, err := svc.AcceptRequest(context.Background(), b, id)
+	require.NoError(t, err)
 	require.Equal(t, models.FriendshipAccepted, fs.friendships[id].Status)
 	require.NotNil(t, fs.friendships[id].AcceptedAt)
+	require.NotNil(t, bridge)
+	require.Equal(t, 1, bridge.YourSide)
+	require.Equal(t, 1, bridge.TheirSide)
+}
+
+// TestAccept_NoBridge proves an accept that only closes a cycle (both endpoints
+// already in the same component) reports no bridge.
+func TestAccept_NoBridge(t *testing.T) {
+	a, b, c := uuid.New(), uuid.New(), uuid.New()
+	fs := newFakeStore(a, b, c)
+	// Triangle minus one edge: a–b and b–c accepted, a–c pending. Accepting a–c
+	// closes the loop, so it is not a bridge.
+	seedFriendship(fs, a, b, models.FriendshipAccepted)
+	seedFriendship(fs, b, c, models.FriendshipAccepted)
+	id := seedFriendship(fs, a, c, models.FriendshipPending)
+	svc, _ := newTestService(t, fs)
+	bridge, err := svc.AcceptRequest(context.Background(), c, id)
+	require.NoError(t, err)
+	require.Nil(t, bridge)
 }
 
 func TestAccept_NotPending(t *testing.T) {
@@ -292,7 +324,7 @@ func TestAccept_NotPending(t *testing.T) {
 	fs := newFakeStore(a, b)
 	id := seedFriendship(fs, a, b, models.FriendshipAccepted)
 	svc, _ := newTestService(t, fs)
-	err := svc.AcceptRequest(context.Background(), b, id)
+	_, err := svc.AcceptRequest(context.Background(), b, id)
 	assertHTTPStatus(t, err, 409, "not_pending")
 }
 

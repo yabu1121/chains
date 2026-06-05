@@ -147,6 +147,20 @@ func (r *Repository) ListAcceptedFriendships(ctx context.Context, userID uuid.UU
 	return rows, err
 }
 
+// AcceptedEdges returns every accepted friendship as an undirected edge (both
+// endpoints as user IDs). Used to reconstruct the friendship graph in memory for
+// bridge detection on accept. The graph is small (friend-only app), so loading
+// the whole edge set per accept is cheap.
+func (r *Repository) AcceptedEdges(ctx context.Context) ([]Edge, error) {
+	var edges []Edge
+	err := r.db.WithContext(ctx).
+		Table("friendships").
+		Select("requester_id AS source, addressee_id AS target").
+		Where("status = ?", models.FriendshipAccepted).
+		Scan(&edges).Error
+	return edges, err
+}
+
 // LanguagesByUsers returns each given user's languages (in their chosen order),
 // keyed by user ID, in a single query. Users with no languages are absent.
 func (r *Repository) LanguagesByUsers(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID][]string, error) {

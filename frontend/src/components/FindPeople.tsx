@@ -49,12 +49,12 @@ export function FindPeople() {
   return (
     <div className="card" ref={cardRef}>
       <h2 className="section-title">{t.find.title}</h2>
-      <form onSubmit={onSearch} style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <form onSubmit={onSearch} className="flex gap-2 flex-wrap">
         <input
           placeholder={t.find.searchPlaceholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          style={{ flex: 1, minWidth: 160 }}
+          className="flex-1 min-w-[160px]"
         />
         <Select
           value={language}
@@ -75,7 +75,7 @@ export function FindPeople() {
       {results === null ? null : results.length === 0 ? (
         <p className="empty">{t.find.noUsers}</p>
       ) : (
-        <div style={{ marginTop: 8 }} ref={resultsRef}>
+        <div className="mt-2" ref={resultsRef}>
           {results.map((u) => (
             <Person
               key={u.id}

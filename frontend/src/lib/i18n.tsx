@@ -104,6 +104,11 @@ const en = {
     noSent: "No pending sent requests.",
     pending: "Pending…",
   },
+  bridge: {
+    title: "You connected two circles",
+    body: (a: number, b: number) =>
+      `${a} on your side and ${b} on theirs are one network now.`,
+  },
   find: {
     title: "Find people",
     searchPlaceholder: "Search by name or email",
@@ -298,6 +303,11 @@ const ja: Dict = {
     sentRequests: "送信したリクエスト",
     noSent: "保留中の送信リクエストはありません。",
     pending: "保留中…",
+  },
+  bridge: {
+    title: "2つの輪が、ひとつに",
+    body: (a: number, b: number) =>
+      `あなた側の${a}人と相手側の${b}人が、いま初めてつながりました。`,
   },
   find: {
     title: "人をさがす",
