@@ -358,6 +358,41 @@ a {
   transform: scaleX(-1);
 }
 
+/* ── Settings menu: a list of section rows (native-app style) ─────────── */
+.settings-menu {
+  @apply flex flex-col rounded-card border border-border bg-panel overflow-hidden;
+}
+
+.settings-menu-item {
+  @apply flex items-center justify-between w-full px-[18px] py-4 bg-transparent text-left text-text cursor-pointer border-0 border-b border-border;
+  font: inherit;
+  transition: background 0.12s ease;
+}
+
+.settings-menu-item:last-child {
+  border-bottom-width: 0;
+}
+
+.settings-menu-item:hover {
+  @apply bg-panel-2;
+}
+
+/* The row's trailing chevron points right (drill-in). */
+.settings-menu-item .chevron-ico {
+  @apply text-muted;
+  transform: scaleX(-1);
+}
+
+/* Back control above a drilled-in section. Chevron stays left-pointing. */
+.settings-back {
+  @apply inline-flex items-center gap-1 mb-4 px-0 py-1 bg-transparent border-0 text-muted cursor-pointer;
+  font: inherit;
+}
+
+.settings-back:hover {
+  @apply text-text;
+}
+
 .topbar {
   @apply hidden items-center justify-between px-4 py-[14px] border-b border-border bg-panel;
 }

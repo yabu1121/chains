@@ -54,6 +54,7 @@ const en = {
     comingSoon: "Coming soon",
     collapse: "Collapse sidebar",
     expand: "Expand sidebar",
+    back: "Settings",
   },
   friendsTabs: {
     friends: "Friends",
@@ -61,11 +62,11 @@ const en = {
     find: "Find",
   },
   settingsTabs: {
-    profile: "Profile",
+    profile: "Profile settings",
     changelog: "Changelog",
-    legal: "Legal",
-    privacy: "Privacy",
-    terms: "Terms",
+    terms: "Terms of Service",
+    privacy: "Privacy Policy",
+    language: "Language",
   },
   login: {
     eyebrow: "Friends only · invite-based",
@@ -262,6 +263,7 @@ const ja: Dict = {
     comingSoon: "Coming soon",
     collapse: "サイドバーをとじる",
     expand: "サイドバーをひらく",
+    back: "設定",
   },
   friendsTabs: {
     friends: "フレンド",
@@ -269,11 +271,11 @@ const ja: Dict = {
     find: "さがす",
   },
   settingsTabs: {
-    profile: "プロフィール",
+    profile: "プロフィール設定",
     changelog: "バージョン履歴",
-    legal: "規約・プライバシー",
-    privacy: "プライバシー",
     terms: "利用規約",
+    privacy: "プライバシーポリシー",
+    language: "言語設定",
   },
   login: {
     eyebrow: "友だち限定 · 招待制",

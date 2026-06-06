@@ -48,9 +48,16 @@ type FriendsSub = "friends" | "requests" | "find";
 const FRIENDS_TABS: FriendsSub[] = ["friends", "requests", "find"];
 
 // Sub-tabs within the Settings area.
-type SettingsSub = "profile" | "changelog" | "legal";
+type SettingsSub = "profile" | "changelog" | "terms" | "privacy" | "language";
 
-const SETTINGS_TABS: SettingsSub[] = ["profile", "changelog", "legal"];
+// Order of the settings menu rows.
+const SETTINGS_ITEMS: SettingsSub[] = [
+  "profile",
+  "changelog",
+  "terms",
+  "privacy",
+  "language",
+];
 
 export default function FriendsPage() {
   return (
@@ -302,95 +309,79 @@ function FriendsArea() {
   );
 }
 
-// SettingsArea groups account settings behind a sub-tab strip: the profile
-// editor plus the in-app Privacy Policy and Terms of Service.
+// SettingsArea is a menu of sections (Profile / Changelog / Terms / Privacy /
+// Language). The landing shows only the menu rows; selecting one drills into
+// that section with a back control, like a native settings screen.
 function SettingsArea() {
-  const [sub, setSub] = useState<SettingsSub>("profile");
-  const [dir, setDir] = useState(0);
+  const [sub, setSub] = useState<SettingsSub | null>(null);
   const { t } = useI18n();
   const reduce = prefersReducedMotion();
   const dist = reduce ? 0 : 24;
 
-  const changeSub = (next: SettingsSub) => {
-    setDir(SETTINGS_TABS.indexOf(next) >= SETTINGS_TABS.indexOf(sub) ? 1 : -1);
-    setSub(next);
-  };
-
   return (
     <>
       <h1 className="area-title">{t.nav.settings}</h1>
-      <div className="subtabs" role="tablist">
-        {SETTINGS_TABS.map((key) => (
-          <button
-            key={key}
-            role="tab"
-            aria-selected={sub === key}
-            className={`subtab${sub === key ? " active" : ""}`}
-            onClick={() => changeSub(key)}
-          >
-            {sub === key ? (
-              <motion.span
-                className="subtab-pill"
-                layoutId="settings-subtab-pill"
-                transition={{ type: "spring", stiffness: 480, damping: 38 }}
-              />
-            ) : null}
-            <span className="subtab-label">{t.settingsTabs[key]}</span>
-          </button>
-        ))}
-      </div>
-
       <AnimatePresence mode="wait" initial={false}>
-        <motion.div
-          key={sub}
-          initial={{ opacity: 0, x: dir >= 0 ? dist : -dist }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
-          transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
-        >
-          {sub === "profile" ? <ProfileEditor /> : null}
-          {sub === "changelog" ? <VersionHistory /> : null}
-          {sub === "legal" ? <LegalSection /> : null}
-        </motion.div>
+        {sub === null ? (
+          <motion.nav
+            key="menu"
+            className="settings-menu"
+            initial={{ opacity: 0, x: -dist }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -dist }}
+            transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {SETTINGS_ITEMS.map((key) => (
+              <button
+                key={key}
+                className="settings-menu-item"
+                onClick={() => setSub(key)}
+              >
+                <span>{t.settingsTabs[key]}</span>
+                <ChevronIcon />
+              </button>
+            ))}
+          </motion.nav>
+        ) : (
+          <motion.div
+            key={sub}
+            initial={{ opacity: 0, x: dist }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: dist }}
+            transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <button
+              type="button"
+              className="settings-back"
+              onClick={() => setSub(null)}
+            >
+              <ChevronIcon />
+              <span>{t.nav.back}</span>
+            </button>
+            {sub === "profile" ? <ProfileEditor /> : null}
+            {sub === "changelog" ? <VersionHistory /> : null}
+            {sub === "terms" ? (
+              <div className="card">
+                <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
+              </div>
+            ) : null}
+            {sub === "privacy" ? (
+              <div className="card">
+                <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
+              </div>
+            ) : null}
+            {sub === "language" ? (
+              <div className="card">
+                <label>{t.common.language}</label>
+                <div className="mt-2">
+                  <LanguageSwitcher fullWidth />
+                </div>
+              </div>
+            ) : null}
+          </motion.div>
+        )}
       </AnimatePresence>
     </>
-  );
-}
-
-// The Legal sub-tab holds both documents behind a small inline toggle so the
-// settings strip stays at three buttons (Profile / Changelog / Legal). The
-// active doc uses the filled button; the other is a ghost.
-function LegalSection() {
-  const { t } = useI18n();
-  const [doc, setDoc] = useState<"terms" | "privacy">("terms");
-  return (
-    <div>
-      <div className="flex gap-2 mb-3" role="tablist">
-        <button
-          role="tab"
-          aria-selected={doc === "terms"}
-          className={doc === "terms" ? "" : "ghost"}
-          onClick={() => setDoc("terms")}
-        >
-          {t.settingsTabs.terms}
-        </button>
-        <button
-          role="tab"
-          aria-selected={doc === "privacy"}
-          className={doc === "privacy" ? "" : "ghost"}
-          onClick={() => setDoc("privacy")}
-        >
-          {t.settingsTabs.privacy}
-        </button>
-      </div>
-      <div className="card">
-        {doc === "terms" ? (
-          <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
-        ) : (
-          <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
-        )}
-      </div>
-    </div>
   );
 }
 
