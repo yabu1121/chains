@@ -210,18 +210,44 @@ export function NetworkGraph({
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
-    // Default link rest length is ~3x d3's default (30 → 90) so edges read long.
-    fg.d3Force?.("link")?.distance(90);
     // Floor on spacing: a collide radius of 15 keeps node centres ≥ ~30px apart
-    // so densely-connected nodes never overlap, even though 90 is the default
-    // (springs can compress the slack, collide stops it past the minimum).
+    // so densely-connected nodes never overlap.
     fg.d3Force?.("collide", forceCollide(15));
-    // Minimal repulsion: d3's default charge (-30) flung nodes too far apart.
-    // The link distance + collide now set the spacing, so the charge only needs
-    // to nudge clusters apart a little.
+    // Minimal repulsion: d3's default charge (-30) flung nodes too far apart, so
+    // the spacing comes from the link distance below; charge only nudges a bit.
     fg.d3Force?.("charge")?.strength(-8);
+
+    const link = fg.d3Force?.("link");
+    if (!link) {
+      fg.d3ReheatSimulation?.();
+      return;
+    }
+
+    // "Breathing" expansion: the layout starts compact and the link rest length
+    // grows over a few seconds up to a ceiling, so the network visibly spreads
+    // out after it loads and then holds at MAX. Reduced-motion users skip the
+    // animation and land on MAX immediately.
+    const MIN = 90;
+    const MAX = 240;
+    if (reduce) {
+      link.distance(MAX);
+      fg.d3ReheatSimulation?.();
+      return;
+    }
+
+    const STEP = 6;
+    const EVERY_MS = 450;
+    let dist = MIN;
+    link.distance(dist);
     fg.d3ReheatSimulation?.();
-  }, [data]);
+    const id = window.setInterval(() => {
+      dist = Math.min(MAX, dist + STEP);
+      link.distance(dist);
+      fg.d3ReheatSimulation?.();
+      if (dist >= MAX) window.clearInterval(id);
+    }, EVERY_MS);
+    return () => window.clearInterval(id);
+  }, [data, reduce]);
 
   return (
     <>
