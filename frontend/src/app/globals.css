@@ -480,6 +480,23 @@ textarea {
     box-shadow 0.18s ease;
 }
 
+/* Date inputs: iOS Safari renders them with native chrome — a different height
+   and a top-/right-aligned value that breaks the form's rhythm. Strip the
+   default appearance so they share the box, height and left alignment of the
+   other text fields, and push the calendar picker to the trailing edge. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  cursor: pointer;
+}
+
 textarea {
   @apply leading-normal resize-y;
 }

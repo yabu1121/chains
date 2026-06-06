@@ -205,11 +205,14 @@ export function NetworkGraph({
   return (
     <>
     <div ref={panelRef} className="flex-1 min-h-0 flex flex-col">
-      <div className="flex justify-between items-center mb-3 px-5 pt-4 pb-0">
+      {/* Stacks on phones (title, then controls + legend) so the heading isn't
+          squeezed to ~40% width and broken mid-word; reverts to the title-left
+          / controls-right row at md and up. */}
+      <div className="flex flex-col gap-2 md:flex-row md:justify-between md:items-center mb-3 px-5 pt-4 pb-0">
         <h2 className="section-title m-0">
           {t.network.title}
         </h2>
-        <div className="flex items-center gap-[14px] flex-wrap">
+        <div className="flex items-center gap-x-[14px] gap-y-1 flex-wrap">
           {graphLanguages.length > 0 ? (
             <Select
               value={language}
@@ -221,7 +224,7 @@ export function NetworkGraph({
               ]}
             />
           ) : null}
-          <div className="muted text-[13px]">
+          <div className="muted text-[13px] flex flex-wrap items-center gap-x-[14px] gap-y-1">
             <Legend color={COLORS.self} label={t.network.legendYou} />
             <Legend color={COLORS.friend} label={t.network.legendFriends} />
             <Legend color={COLORS.other} label={t.network.legendEveryone} />
@@ -249,14 +252,16 @@ export function NetworkGraph({
             {graph.truncated ? " (showing a capped subset)" : ""}
             {language ? ` · ${matchCount} use ${language}` : ""}
           </p>
-          <div ref={ref} className="graph-canvas flex-1 min-h-0 overflow-hidden bg-white">
+          <div ref={ref} className="graph-canvas flex-1 min-h-0 overflow-hidden bg-bg">
             {size.width > 0 && size.height > 0 ? (
               <ForceGraph2D
                 ref={fgRef}
                 graphData={data}
                 width={size.width}
                 height={size.height}
-                backgroundColor="#ffffff"
+                // Match the warm-paper page background (--color-bg) so the
+                // graph blends in with no visible white panel edge.
+                backgroundColor="#faf8f4"
                 cooldownTicks={120}
                 onEngineStop={() => {
                   if (focusedRef.current) return;
@@ -436,7 +441,7 @@ function Legend({
   dashed?: boolean;
 }) {
   return (
-    <span className="ml-[14px] whitespace-nowrap">
+    <span className="whitespace-nowrap">
       <span
         className="inline-block align-middle mr-[5px]"
         style={
