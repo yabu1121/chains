@@ -68,6 +68,32 @@
   --bottombar-h: 60px;
 }
 
+/* Mobile: keep scrolling but hide the scrollbars for an app-like, chrome-free
+   feel — content still scrolls, only the visible bar is suppressed. Kept
+   UNLAYERED (outside @layer) on purpose: inside Tailwind's component layer the
+   build pipeline pruned these rules. */
+@media (max-width: 768px) {
+  html,
+  body,
+  .app-main,
+  .content,
+  .modal-body,
+  .card {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* old Edge/IE */
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  .app-main::-webkit-scrollbar,
+  .content::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar,
+  .card::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* WebKit (iOS Safari / Android Chrome) */
+  }
+}
+
 /* Preflight is disabled, but the `border` utilities need a default border-style
    to be visible AND a 0 width so elements without an explicit border stay
    borderless. This is the one preflight rule we keep — both halves matter:
