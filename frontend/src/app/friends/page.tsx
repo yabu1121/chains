@@ -11,6 +11,7 @@ import { Topbar } from "@/components/Topbar";
 import { NavIcon } from "@/components/NavIcon";
 import { ChevronIcon } from "@/components/ChevronIcon";
 import { LogoutIcon } from "@/components/LogoutIcon";
+import { VersionHistory } from "@/components/VersionHistory";
 import { Person } from "@/components/Person";
 import { FindPeople } from "@/components/FindPeople";
 import { QRInvite } from "@/components/QRInvite";
@@ -47,9 +48,9 @@ type FriendsSub = "friends" | "requests" | "find";
 const FRIENDS_TABS: FriendsSub[] = ["friends", "requests", "find"];
 
 // Sub-tabs within the Settings area.
-type SettingsSub = "profile" | "privacy" | "terms";
+type SettingsSub = "profile" | "changelog" | "legal";
 
-const SETTINGS_TABS: SettingsSub[] = ["profile", "privacy", "terms"];
+const SETTINGS_TABS: SettingsSub[] = ["profile", "changelog", "legal"];
 
 export default function FriendsPage() {
   return (
@@ -348,19 +349,48 @@ function SettingsArea() {
           transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
         >
           {sub === "profile" ? <ProfileEditor /> : null}
-          {sub === "privacy" ? (
-            <div className="card">
-              <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
-            </div>
-          ) : null}
-          {sub === "terms" ? (
-            <div className="card">
-              <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
-            </div>
-          ) : null}
+          {sub === "changelog" ? <VersionHistory /> : null}
+          {sub === "legal" ? <LegalSection /> : null}
         </motion.div>
       </AnimatePresence>
     </>
+  );
+}
+
+// The Legal sub-tab holds both documents behind a small inline toggle so the
+// settings strip stays at three buttons (Profile / Changelog / Legal). The
+// active doc uses the filled button; the other is a ghost.
+function LegalSection() {
+  const { t } = useI18n();
+  const [doc, setDoc] = useState<"terms" | "privacy">("terms");
+  return (
+    <div>
+      <div className="flex gap-2 mb-3" role="tablist">
+        <button
+          role="tab"
+          aria-selected={doc === "terms"}
+          className={doc === "terms" ? "" : "ghost"}
+          onClick={() => setDoc("terms")}
+        >
+          {t.settingsTabs.terms}
+        </button>
+        <button
+          role="tab"
+          aria-selected={doc === "privacy"}
+          className={doc === "privacy" ? "" : "ghost"}
+          onClick={() => setDoc("privacy")}
+        >
+          {t.settingsTabs.privacy}
+        </button>
+      </div>
+      <div className="card">
+        {doc === "terms" ? (
+          <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
+        ) : (
+          <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
+        )}
+      </div>
+    </div>
   );
 }
 

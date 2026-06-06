@@ -62,6 +62,8 @@ const en = {
   },
   settingsTabs: {
     profile: "Profile",
+    changelog: "Changelog",
+    legal: "Legal",
     privacy: "Privacy",
     terms: "Terms",
   },
@@ -268,6 +270,8 @@ const ja: Dict = {
   },
   settingsTabs: {
     profile: "プロフィール",
+    changelog: "バージョン履歴",
+    legal: "規約・プライバシー",
     privacy: "プライバシー",
     terms: "利用規約",
   },
