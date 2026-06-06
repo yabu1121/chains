@@ -412,9 +412,6 @@ export function NetworkGraph({
               />
             ) : null}
           </div>
-          <p className="muted text-xs m-0 px-5 py-2">
-            Tap a node to view their profile · scroll to zoom · drag to pan.
-          </p>
         </>
       )}
     </div>

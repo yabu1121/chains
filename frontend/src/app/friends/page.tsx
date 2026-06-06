@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { prefersReducedMotion, useReveal, useStagger } from "@/lib/anim";
@@ -8,6 +8,9 @@ import { Guard } from "@/components/Guard";
 import { Select } from "@/components/Select";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Topbar } from "@/components/Topbar";
+import { NavIcon } from "@/components/NavIcon";
+import { ChevronIcon } from "@/components/ChevronIcon";
+import { LogoutIcon } from "@/components/LogoutIcon";
 import { Person } from "@/components/Person";
 import { FindPeople } from "@/components/FindPeople";
 import { QRInvite } from "@/components/QRInvite";
@@ -78,6 +81,10 @@ function NavLinks({
           key={key}
           className={`navbtn${tab === key ? " active" : ""}`}
           onClick={() => setTab(key)}
+          // Label as aria-label + native tooltip so the icon stays accessible
+          // when the sidebar is collapsed to icons only.
+          aria-label={t.nav[key]}
+          title={t.nav[key]}
         >
           {withPill && tab === key ? (
             <motion.span
@@ -86,6 +93,7 @@ function NavLinks({
               transition={{ type: "spring", stiffness: 480, damping: 38 }}
             />
           ) : null}
+          <NavIcon name={key} />
           <span className="nav-label">{t.nav[key]}</span>
           {key === "friends" && incomingCount > 0 ? (
             <span className="badge">{incomingCount}</span>
@@ -98,6 +106,18 @@ function NavLinks({
 
 function Dashboard() {
   const [tab, setTab] = useState<Tab>("friends");
+  // Desktop sidebar collapse (icons only). Default expanded; the saved choice is
+  // read after mount to avoid a server/client hydration mismatch.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("chains:sidebar-collapsed") === "1");
+  }, []);
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem("chains:sidebar-collapsed", next ? "1" : "0");
+      return next;
+    });
   // Sign of the last tab move (+1 right, -1 left) drives the slide direction.
   const [dir, setDir] = useState(0);
   // Clicking the brand opens your own profile in the same modal a network node
@@ -117,7 +137,7 @@ function Dashboard() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={`sidebar${collapsed ? " collapsed" : ""}`}>
         <button
           type="button"
           className="brand"
@@ -125,7 +145,11 @@ function Dashboard() {
           title={t.nav.viewProfile}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="brand-logo" src="/chains-logo.png" alt="chains" />
+          <img
+            className="brand-logo"
+            src={collapsed ? "/chains_icon.png" : "/chains-logo.png"}
+            alt="chains"
+          />
         </button>
         <nav className="sidebar-nav">
           <NavLinks
@@ -137,10 +161,29 @@ function Dashboard() {
           />
         </nav>
         <div className="sidebar-foot">
-          <LanguageSwitcher fullWidth />
-          {user ? <span className="muted">{user.display_name}</span> : null}
-          <button className="ghost" onClick={logout}>
-            {t.nav.logout}
+          <button
+            type="button"
+            className="collapse-toggle"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? t.nav.expand : t.nav.collapse}
+            title={collapsed ? t.nav.expand : t.nav.collapse}
+          >
+            <ChevronIcon />
+            {!collapsed ? (
+              <span className="nav-label">{t.nav.collapse}</span>
+            ) : null}
+          </button>
+          {!collapsed ? <LanguageSwitcher fullWidth /> : null}
+          {!collapsed && user ? (
+            <span className="muted">{user.display_name}</span>
+          ) : null}
+          <button
+            className="ghost"
+            onClick={logout}
+            aria-label={t.nav.logout}
+            title={t.nav.logout}
+          >
+            {collapsed ? <LogoutIcon /> : t.nav.logout}
           </button>
         </div>
       </aside>

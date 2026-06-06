@@ -289,6 +289,75 @@ a {
   @apply relative z-[1];
 }
 
+/* Nav glyphs sit above the sliding pill and inherit a muted ink until the item
+   is hovered or active, when they pick up the indigo accent like the label. */
+.nav-ico {
+  @apply relative z-[1] flex-none;
+  color: var(--muted);
+  transition: color 0.12s ease;
+}
+
+.navbtn:hover .nav-ico,
+.navbtn.active .nav-ico {
+  color: var(--accent);
+}
+
+/* ── Collapsible sidebar (desktop) ─────────────────────────────────────
+   Expanded → 240px with labels; collapsed → a 72px rail of icons only. The
+   width animates; labels are removed (not just hidden) so they don't reflow. */
+.sidebar {
+  transition: width 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sidebar.collapsed {
+  @apply w-[72px] px-2 items-center;
+}
+
+.sidebar.collapsed .navbtn,
+.sidebar.collapsed .collapse-toggle {
+  @apply justify-center px-0;
+}
+
+/* Drop the labels in the rail — width is the icon's, not the word's. */
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .brand {
+  @apply mx-auto;
+}
+
+.sidebar.collapsed .brand-logo {
+  @apply h-9 w-9;
+}
+
+/* Icon-only friends button: float the count badge onto the glyph's corner
+   instead of trailing a (now hidden) label. */
+.sidebar.collapsed .navbtn .badge {
+  @apply absolute top-1 right-[14px] z-[2];
+}
+
+/* The collapse toggle reads like a quieter nav row pinned to the sidebar foot. */
+.collapse-toggle {
+  @apply flex items-center gap-2 w-full px-3 py-2 border-0 rounded-lg bg-transparent text-muted cursor-pointer;
+  font: inherit;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.collapse-toggle:hover {
+  @apply bg-panel-2 text-text;
+}
+
+.chevron-ico {
+  @apply flex-none;
+  transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Flip the chevron to point outward (expand) when the rail is collapsed. */
+.sidebar.collapsed .chevron-ico {
+  transform: scaleX(-1);
+}
+
 .topbar {
   @apply hidden items-center justify-between px-4 py-[14px] border-b border-border bg-panel;
 }
@@ -314,7 +383,10 @@ a {
 /* The brand doubles as a button (click → your profile); strip the chrome but
    keep the logo type, and let it sit left-aligned like the old text. */
 button.brand {
-  @apply inline-block bg-none border-0 p-0 text-left cursor-pointer;
+  /* `bg-none` only drops the background *image*; the base button rule still
+     paints bg-panel-2, which left a grey box behind the logo. Force it
+     transparent so the wordmark sits straight on the bar. */
+  @apply inline-block bg-transparent border-0 p-0 text-left cursor-pointer;
   font-family: inherit;
 }
 
@@ -577,6 +649,22 @@ button.primary {
 
 button.primary:hover {
   @apply bg-[#25282f];
+}
+
+/* Social-login buttons. Outlined rather than filled so they read as secondary
+   to the inked primary action, in keeping with the warm-paper palette. */
+.oauth-btn {
+  @apply flex items-center justify-center gap-2.5 w-full p-[10px] border bg-panel text-text font-medium no-underline;
+  border-color: var(--border);
+  border-radius: 10px;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.oauth-btn:hover {
+  @apply bg-panel-2;
+  border-color: var(--ink);
 }
 
 button.danger {
@@ -951,6 +1039,12 @@ button.ghost:hover {
 
   .topbar {
     display: flex;
+    /* App-like: keep the brand/actions bar pinned while content scrolls, and
+       clear any top safe-area (notch in landscape / black-translucent mode). */
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding-top: calc(14px + env(safe-area-inset-top));
   }
 
   .content {
@@ -1016,20 +1110,58 @@ button.ghost:hover {
     padding: 13px;
   }
 
-  /* The topbar carries brand + name + language + logout; let it wrap and keep
-     the long display name from pushing the row past the screen edge. */
+  /* One clean row: the wordmark holds the left, the action cluster the right.
+     The brand never shrinks; the actions group absorbs the slack and the name
+     truncates so nothing wraps to a second line. */
   .topbar {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: center;
+    /* Symmetric vertical padding so the row (name, language, sign-out) sits
+       optically centred in the bar. The notch is handled by the OS reserving
+       the status bar (apple status-bar-style "default") plus the safe-area
+       spacer below — adding the inset HERE skewed the content downward and made
+       it read as off-centre in device emulators. */
+    padding-top: 12px;
+    padding-bottom: 12px;
+    /* Still clear the notch when the status bar overlays the webview, without
+       unbalancing the row: a margin pushes the whole bar down, padding stays
+       symmetric so the content remains centred within the bar itself. */
+    margin-top: env(safe-area-inset-top);
+  }
+  .topbar .brand {
+    flex: none;
   }
   .topbar .actions {
     min-width: 0;
+    align-items: center;
+    gap: 10px;
   }
-  .topbar .actions .muted {
+  /* Signed-in name: a quiet caption that yields space before anything else. */
+  .topbar-name {
+    flex: 0 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 38vw;
+    max-width: 34vw;
+    color: var(--muted);
+    font-size: 12.5px;
+    letter-spacing: -0.01em;
+  }
+  /* Compact square icon button (sign out) — no grey fill, tap-sized. */
+  .topbar .icon-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    color: var(--muted);
+  }
+  .topbar .icon-btn:hover {
+    color: var(--text);
   }
 }
 
