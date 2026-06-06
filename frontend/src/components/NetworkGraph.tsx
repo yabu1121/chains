@@ -216,6 +216,10 @@ export function NetworkGraph({
     // so densely-connected nodes never overlap, even though 90 is the default
     // (springs can compress the slack, collide stops it past the minimum).
     fg.d3Force?.("collide", forceCollide(15));
+    // Minimal repulsion: d3's default charge (-30) flung nodes too far apart.
+    // The link distance + collide now set the spacing, so the charge only needs
+    // to nudge clusters apart a little.
+    fg.d3Force?.("charge")?.strength(-8);
     fg.d3ReheatSimulation?.();
   }, [data]);
 
