@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, type Variants } from "framer-motion";
 import { PROGRAMMING_LANGUAGES } from "@/lib/languages";
 import { prefersReducedMotion, useReveal, useStagger } from "@/lib/anim";
 import { Guard } from "@/components/Guard";
@@ -322,6 +322,37 @@ function SettingsArea() {
   const enter = reduce ? 0 : 64;
   const menuShift = reduce ? 0 : 24;
 
+  // Drawer-from-right: the panel springs in from the right, then its contents
+  // (the back control, then the section body) rise in with a short stagger, so
+  // the section reads as being drawn out and unfolding rather than just sliding.
+  const panel: Variants = reduce
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 }, exit: { opacity: 1 } }
+    : {
+        hidden: { opacity: 0, x: enter },
+        visible: {
+          opacity: 1,
+          x: 0,
+          transition: {
+            type: "spring",
+            stiffness: 260,
+            damping: 30,
+            delayChildren: 0.08,
+            staggerChildren: 0.07,
+          },
+        },
+        exit: { opacity: 0, x: enter, transition: { duration: 0.28, ease } },
+      };
+  const item: Variants = reduce
+    ? { hidden: { opacity: 1 }, visible: { opacity: 1 } }
+    : {
+        hidden: { opacity: 0, y: 12 },
+        visible: {
+          opacity: 1,
+          y: 0,
+          transition: { type: "spring", stiffness: 320, damping: 26 },
+        },
+      };
+
   return (
     <>
       <h1 className="area-title">{t.nav.settings}</h1>
@@ -349,39 +380,42 @@ function SettingsArea() {
         ) : (
           <motion.div
             key={sub}
-            initial={{ opacity: 0, x: enter }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: enter }}
-            transition={{ duration: reduce ? 0 : 0.44, ease }}
+            variants={panel}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
           >
-            <button
+            <motion.button
+              variants={item}
               type="button"
               className="settings-back"
               onClick={() => setSub(null)}
             >
               <ChevronIcon />
               <span>{t.nav.back}</span>
-            </button>
-            {sub === "profile" ? <ProfileEditor /> : null}
-            {sub === "changelog" ? <VersionHistory /> : null}
-            {sub === "terms" ? (
-              <div className="card">
-                <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
-              </div>
-            ) : null}
-            {sub === "privacy" ? (
-              <div className="card">
-                <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
-              </div>
-            ) : null}
-            {sub === "language" ? (
-              <div className="card">
-                <label>{t.common.language}</label>
-                <div className="mt-2">
-                  <LanguageSwitcher fullWidth />
+            </motion.button>
+            <motion.div variants={item}>
+              {sub === "profile" ? <ProfileEditor /> : null}
+              {sub === "changelog" ? <VersionHistory /> : null}
+              {sub === "terms" ? (
+                <div className="card">
+                  <LegalDoc en={<TermsEN />} ja={<TermsJA />} backHref={null} />
                 </div>
-              </div>
-            ) : null}
+              ) : null}
+              {sub === "privacy" ? (
+                <div className="card">
+                  <LegalDoc en={<PrivacyEN />} ja={<PrivacyJA />} backHref={null} />
+                </div>
+              ) : null}
+              {sub === "language" ? (
+                <div className="card">
+                  <label>{t.common.language}</label>
+                  <div className="mt-2">
+                    <LanguageSwitcher fullWidth />
+                  </div>
+                </div>
+              ) : null}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
