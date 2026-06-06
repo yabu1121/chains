@@ -206,7 +206,13 @@ function Dashboard() {
               initial={{ opacity: 0, x: dir >= 0 ? dist : -dist }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
-              transition={{ duration: reduce ? 0 : 0.26, ease: [0.16, 1, 0.3, 1] }}
+              transition={
+                reduce
+                  ? { duration: 0 }
+                  : // Native-feel page transition: a snappy spring (slides into
+                    // place and settles) rather than a fixed-duration ease.
+                    { type: "spring", stiffness: 320, damping: 34, mass: 0.85 }
+              }
             >
               {tab === "friends" ? <FriendsArea /> : null}
               {tab === "network" ? (
@@ -293,7 +299,11 @@ function FriendsArea() {
           initial={{ opacity: 0, x: dir >= 0 ? dist : -dist }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: dir >= 0 ? -dist : dist }}
-          transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+          transition={
+            reduce
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 340, damping: 34, mass: 0.8 }
+          }
         >
           {sub === "friends" ? <FriendsTab /> : null}
           {sub === "requests" ? <RequestsTab /> : null}

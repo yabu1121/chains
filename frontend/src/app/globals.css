@@ -78,6 +78,7 @@
   .app-main,
   .content,
   .modal-body,
+  .modal-card,
   .card {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* old Edge/IE */
@@ -87,6 +88,7 @@
   .app-main::-webkit-scrollbar,
   .content::-webkit-scrollbar,
   .modal-body::-webkit-scrollbar,
+  .modal-card::-webkit-scrollbar,
   .card::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -170,6 +172,17 @@ html {
   }
   to {
     opacity: 1;
+    transform: none;
+  }
+}
+
+/* Mobile bottom-sheet entrance: slide up from the bottom edge like a native
+   iOS/Android sheet. */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
     transform: none;
   }
 }
@@ -1111,6 +1124,22 @@ button.ghost:hover {
 
 /* ── Mobile: hide sidebar, show top bar + bottom tab bar ───────────── */
 @media (max-width: 768px) {
+  /* Modals become bottom sheets: anchored to the bottom edge, full width,
+     rounded top only, sliding up from below — the native mobile pattern. */
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-card {
+    max-width: none;
+    border-radius: 20px 20px 0 0;
+    border-bottom-width: 0;
+    max-height: 92dvh;
+    overflow-y: auto;
+    padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    animation: sheet-up 0.34s cubic-bezier(0.2, 0.82, 0.2, 1) both;
+  }
+
   .sidebar {
     display: none;
   }
