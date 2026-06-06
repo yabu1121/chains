@@ -97,7 +97,7 @@ export default function RegisterPage() {
         />
         <label
           htmlFor="agree"
-          className="flex items-start gap-2 mt-4 cursor-pointer"
+          className="flex items-start gap-2 mt-3 md:mt-4 cursor-pointer"
         >
           <input
             id="agree"
@@ -114,7 +114,7 @@ export default function RegisterPage() {
             {t.register.agreePost}
           </span>
         </label>
-        <div className="mt-5">
+        <div className="mt-4 md:mt-5">
           <button
             className="primary"
             type="submit"
@@ -125,7 +125,7 @@ export default function RegisterPage() {
         </div>
         {error ? <p className="error">{error}</p> : null}
         <OAuthButtons />
-        <p className="muted mt-4 text-center">
+        <p className="muted mt-3 md:mt-4 text-center">
           {t.register.haveAccount} <Link href="/login">{t.register.login}</Link>
         </p>
         <p className="muted mt-1 text-center">

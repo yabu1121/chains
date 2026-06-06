@@ -96,6 +96,43 @@
   }
 }
 
+/* Mobile auth (login / sign-up): fit the screen without scrolling. Drop the top
+   app icon and the whole wordmark hero, and tighten the card, fields and
+   spacing. Kept UNLAYERED on purpose — the same rules inside Tailwind's
+   component layer were pruned/overridden by the build. Desktop (≥860px) keeps
+   its full two-column hero (that media block lives later, in the layer). */
+@media (max-width: 859px) {
+  .brandbar {
+    justify-content: flex-end; /* only the language switcher remains */
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .brandbar-mark {
+    display: none; /* the top app icon */
+  }
+  .auth-hero {
+    display: none; /* the big wordmark + descriptor */
+  }
+  .auth-page {
+    padding: 8px 20px 20px;
+  }
+  .auth-card {
+    margin-top: 0;
+    padding: 16px;
+  }
+  .auth-card label {
+    margin-top: 8px;
+  }
+  .auth-card input {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .oauth-btn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
+
 /* Preflight is disabled, but the `border` utilities need a default border-style
    to be visible AND a 0 width so elements without an explicit border stay
    borderless. This is the one preflight rule we keep — both halves matter:
@@ -172,17 +209,6 @@ html {
   }
   to {
     opacity: 1;
-    transform: none;
-  }
-}
-
-/* Mobile bottom-sheet entrance: slide up from the bottom edge like a native
-   iOS/Android sheet. */
-@keyframes sheet-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
     transform: none;
   }
 }
@@ -1124,20 +1150,11 @@ button.ghost:hover {
 
 /* ── Mobile: hide sidebar, show top bar + bottom tab bar ───────────── */
 @media (max-width: 768px) {
-  /* Modals become bottom sheets: anchored to the bottom edge, full width,
-     rounded top only, sliding up from below — the native mobile pattern. */
-  .modal-overlay {
-    align-items: flex-end;
-    padding: 0;
-  }
+  /* Keep a tall modal usable on small screens without becoming a sheet:
+     centred, but able to scroll inside if its content exceeds the viewport. */
   .modal-card {
-    max-width: none;
-    border-radius: 20px 20px 0 0;
-    border-bottom-width: 0;
-    max-height: 92dvh;
+    max-height: 88dvh;
     overflow-y: auto;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    animation: sheet-up 0.34s cubic-bezier(0.2, 0.82, 0.2, 1) both;
   }
 
   .sidebar {

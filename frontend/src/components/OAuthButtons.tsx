@@ -19,14 +19,14 @@ export function OAuthButtons() {
   if (providers.length === 0) return null;
 
   return (
-    <div className="mt-5">
+    <div className="mt-4 md:mt-5">
       <div className="flex items-center gap-3 text-[13px] text-[color:var(--muted)]">
         <span className="h-px flex-1 bg-[color:var(--border)]" />
         {t.login.or}
         <span className="h-px flex-1 bg-[color:var(--border)]" />
       </div>
 
-      <div className="flex flex-col gap-2.5 mt-4">
+      <div className="flex flex-col gap-2 md:gap-2.5 mt-3 md:mt-4">
         {providers.includes("github") ? (
           <a className="oauth-btn" href={oauthStartUrl("github")}>
             <GithubMark />
