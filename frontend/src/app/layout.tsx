@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { JetBrains_Mono, IBM_Plex_Sans_JP } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { ChainBackground } from "@/components/ChainBackground";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 // Latin / English type: JetBrains Mono. Exposed as --font-mono and placed first
@@ -30,7 +31,28 @@ export const metadata: Metadata = {
   title: "Chains",
   description: "Make connections — friends only.",
   // Favicon / app icon come from the App Router convention files
-  // src/app/icon.png and src/app/apple-icon.png.
+  // src/app/icon.png and src/app/apple-icon.png; the web manifest comes from
+  // src/app/manifest.ts.
+  applicationName: "Chains",
+  // iOS standalone (Add to Home Screen): run full-screen, no Safari chrome.
+  appleWebApp: {
+    capable: true,
+    title: "Chains",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
+};
+
+// Mobile-app viewport: lock zoom for an app-like feel, extend under the notch
+// (viewport-fit=cover, paired with env(safe-area-inset-*) in globals.css), and
+// paint the browser UI / status bar in the warm-paper background colour.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#faf8f4",
 };
 
 // Render at request time (not build time) so process.env.API_BASE_URL is read
@@ -45,6 +67,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
   return (
     <html lang="ja" className={`${mono.variable} ${jp.variable}`}>
+      <head>
+        {/* Next emits the modern `mobile-web-app-capable` and strips the legacy
+            apple-prefixed name, but older iOS Safari still keys standalone
+            launch off it — inject it raw so Add to Home Screen runs full-screen
+            there too. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
       <body>
         {/* Runs before the app bundle, so window config is ready for api.ts. */}
         <script
@@ -52,6 +81,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             __html: `window.__CHAINS_CONFIG__=${JSON.stringify({ apiBaseUrl })}`,
           }}
         />
+        <ServiceWorkerRegister />
         <I18nProvider>
           <AuthProvider>
             <ChainBackground />
