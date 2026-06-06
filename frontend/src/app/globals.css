@@ -102,23 +102,56 @@
    component layer were pruned/overridden by the build. Desktop (≥860px) keeps
    its full two-column hero (that media block lives later, in the layer). */
 @media (max-width: 859px) {
+  /* Float the language switcher to the top-right (the redundant app icon is
+     hidden) so the auth screen can own the full viewport height below it. */
   .brandbar {
-    justify-content: flex-end; /* only the language switcher remains */
-    padding-top: 10px;
-    padding-bottom: 10px;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: auto;
+    margin: 0;
+    padding: 10px 14px;
+    z-index: 10;
+    justify-content: flex-end;
   }
   .brandbar-mark {
-    display: none; /* the top app icon */
+    display: none; /* the redundant top-bar icon — the hero logo is the brand */
+  }
+
+  /* Fill the screen: the page is full height and the card grows to take all the
+     remaining space, so login and sign-up are always the same size. */
+  .auth-page {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 44px 16px max(16px, env(safe-area-inset-bottom));
   }
   .auth-hero {
-    display: none; /* the big wordmark + descriptor */
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
   }
-  .auth-page {
-    padding: 8px 20px 20px;
+  .auth-logo {
+    height: 44px;
   }
   .auth-card {
     margin-top: 0;
-    padding: 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+  }
+  /* Centre the content so login's shorter form sits balanced (no wasted bottom);
+     sign-up fills the card and these auto margins collapse to zero. */
+  .auth-card > :first-child {
+    margin-top: auto;
+  }
+  .auth-card > :last-child {
+    margin-bottom: auto;
   }
   .auth-card label {
     margin-top: 8px;
