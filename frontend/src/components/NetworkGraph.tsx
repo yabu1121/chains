@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { forceCollide } from "d3-force";
 import { useAuth } from "@/lib/auth";
 import { avatarUrl } from "@/lib/api";
 import {
@@ -209,7 +210,12 @@ export function NetworkGraph({
   useEffect(() => {
     const fg = fgRef.current;
     if (!fg) return;
+    // Default link rest length is ~3x d3's default (30 → 90) so edges read long.
     fg.d3Force?.("link")?.distance(90);
+    // Floor on spacing: a collide radius of 15 keeps node centres ≥ ~30px apart
+    // so densely-connected nodes never overlap, even though 90 is the default
+    // (springs can compress the slack, collide stops it past the minimum).
+    fg.d3Force?.("collide", forceCollide(15));
     fg.d3ReheatSimulation?.();
   }, [data]);
 
