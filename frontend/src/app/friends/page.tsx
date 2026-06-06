@@ -514,6 +514,9 @@ function RequestsTab() {
   // we surface a brief celebration. New object identity each time → the toast's
   // auto-dismiss timer restarts for back-to-back bridges.
   const [bridge, setBridge] = useState<BridgeInfo | null>(null);
+  // Tapping a requester (not their action buttons) opens their profile, same as
+  // the friends list — works on mobile via the bottom-sheet modal.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   async function onAccept(requestId: string) {
     const result = await acceptRequest(requestId);
@@ -540,6 +543,7 @@ function RequestsTab() {
                 user={r.user}
                 note={r.message}
                 arrow="in"
+                onSelect={() => setSelectedId(r.user.id)}
                 actions={
                   <>
                     <button onClick={() => onAccept(r.request_id)}>
@@ -573,6 +577,7 @@ function RequestsTab() {
                 user={r.user}
                 subtitle={t.friends.pending}
                 arrow="out"
+                onSelect={() => setSelectedId(r.user.id)}
                 actions={
                   <button
                     className="ghost"
@@ -588,6 +593,10 @@ function RequestsTab() {
       </div>
 
       <BridgeToast bridge={bridge} onDismiss={() => setBridge(null)} />
+
+      {selectedId ? (
+        <ProfileModal userId={selectedId} onClose={() => setSelectedId(null)} />
+      ) : null}
     </>
   );
 }
