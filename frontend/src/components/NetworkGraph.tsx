@@ -202,6 +202,17 @@ export function NetworkGraph({
     }
   }, [data]);
 
+  // Spread connected nodes apart: ~3x d3-force's default link rest length
+  // (30 → 90) so edges read as longer, less cramped lines. Re-applied on every
+  // data change because react-force-graph reinstalls its default forces when
+  // graphData updates; reheat so the layout re-settles at the new distance.
+  useEffect(() => {
+    const fg = fgRef.current;
+    if (!fg) return;
+    fg.d3Force?.("link")?.distance(90);
+    fg.d3ReheatSimulation?.();
+  }, [data]);
+
   return (
     <>
     <div ref={panelRef} className="flex-1 min-h-0 flex flex-col">
