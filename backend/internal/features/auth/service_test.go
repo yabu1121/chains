@@ -23,6 +23,7 @@ type fakeUserStore struct {
 	byEmail    map[string]*models.User
 	byUsername map[string]*models.User
 	byID       map[uuid.UUID]*models.User
+	identities map[string]*models.UserIdentity // key: provider + "\x00" + providerUserID
 }
 
 func newFakeUserStore() *fakeUserStore {
@@ -30,7 +31,38 @@ func newFakeUserStore() *fakeUserStore {
 		byEmail:    map[string]*models.User{},
 		byUsername: map[string]*models.User{},
 		byID:       map[uuid.UUID]*models.User{},
+		identities: map[string]*models.UserIdentity{},
 	}
+}
+
+func identityKey(provider, providerUserID string) string {
+	return provider + "\x00" + providerUserID
+}
+
+func (f *fakeUserStore) FindIdentity(_ context.Context, provider, providerUserID string) (*models.UserIdentity, error) {
+	id, ok := f.identities[identityKey(provider, providerUserID)]
+	if !ok {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return id, nil
+}
+
+func (f *fakeUserStore) CreateIdentity(_ context.Context, id *models.UserIdentity) error {
+	key := identityKey(id.Provider, id.ProviderUserID)
+	if _, ok := f.identities[key]; ok {
+		return gorm.ErrDuplicatedKey
+	}
+	cp := *id
+	f.identities[key] = &cp
+	return nil
+}
+
+func (f *fakeUserStore) CreateUserWithIdentity(ctx context.Context, u *models.User, id *models.UserIdentity) error {
+	if err := f.Create(ctx, u); err != nil {
+		return err
+	}
+	id.UserID = u.ID
+	return f.CreateIdentity(ctx, id)
 }
 
 func (f *fakeUserStore) Create(_ context.Context, u *models.User) error {

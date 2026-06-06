@@ -1,6 +1,6 @@
 // The canonical list of programming languages a user can list on their profile
 // and filter by. Must stay in sync with the backend's internal/langs/langs.go.
-export const PROGRAMMING_LANGUAGES = [
+export const PROGRAMMING_LANGUAGES: string[] = [
   "Go",
   "TypeScript",
   "JavaScript",

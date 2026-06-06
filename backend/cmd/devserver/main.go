@@ -86,6 +86,17 @@ func run() error {
 		JWTTTL:      24 * time.Hour,
 		CORSOrigins: []string{"http://localhost:3000"},
 		CacheTTL:    5 * time.Minute,
+
+		// Social login. Set these env vars to try OAuth locally; with them unset
+		// the buttons simply don't appear. OAuthRedirectBaseURL must match this
+		// dev server's own address (the frontend runs on :3000, the API here),
+		// so the provider callback resolves back to us.
+		GithubOAuthClientID:     os.Getenv("GITHUB_OAUTH_CLIENT_ID"),
+		GithubOAuthClientSecret: os.Getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+		GoogleOAuthClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		GoogleOAuthClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		OAuthRedirectBaseURL:    envOr("OAUTH_REDIRECT_BASE_URL", "http://localhost"+addr),
+		FrontendURL:             envOr("FRONTEND_URL", "http://localhost:3000"),
 	}
 	e := server.New(cfg, db, c)
 	srv := &http.Server{Addr: addr, Handler: e, ReadHeaderTimeout: 10 * time.Second}

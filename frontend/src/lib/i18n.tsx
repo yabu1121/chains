@@ -52,6 +52,8 @@ const en = {
     logout: "Log out",
     viewProfile: "View your profile",
     comingSoon: "Coming soon",
+    collapse: "Collapse sidebar",
+    expand: "Expand sidebar",
   },
   friendsTabs: {
     friends: "Friends",
@@ -72,6 +74,10 @@ const en = {
     submitting: "Logging in…",
     noAccount: "No account?",
     createOne: "Create one",
+    or: "or",
+    withGithub: "Continue with GitHub",
+    withGoogle: "Continue with Google",
+    oauthError: "Could not sign in with that provider. Please try again.",
   },
   register: {
     title: "Create account",
@@ -252,6 +258,8 @@ const ja: Dict = {
     logout: "ログアウト",
     viewProfile: "プロフィールを表示",
     comingSoon: "Coming soon",
+    collapse: "サイドバーをとじる",
+    expand: "サイドバーをひらく",
   },
   friendsTabs: {
     friends: "フレンド",
@@ -272,6 +280,10 @@ const ja: Dict = {
     submitting: "ログイン中…",
     noAccount: "アカウントをお持ちでない方は",
     createOne: "新規登録",
+    or: "または",
+    withGithub: "GitHub で続ける",
+    withGoogle: "Google で続ける",
+    oauthError: "そのアカウントでのログインに失敗しました。もう一度お試しください。",
   },
   register: {
     title: "アカウント作成",

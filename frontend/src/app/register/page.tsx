@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api";
 import { useReveal } from "@/lib/anim";
 import { useI18n } from "@/lib/i18n";
 import { TopBrandBar } from "@/components/TopBrandBar";
+import { OAuthButtons } from "@/components/OAuthButtons";
 
 export default function RegisterPage() {
   const { t } = useI18n();
@@ -123,6 +124,7 @@ export default function RegisterPage() {
           </button>
         </div>
         {error ? <p className="error">{error}</p> : null}
+        <OAuthButtons />
         <p className="muted mt-4 text-center">
           {t.register.haveAccount} <Link href="/login">{t.register.login}</Link>
         </p>

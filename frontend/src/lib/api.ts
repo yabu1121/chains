@@ -115,6 +115,30 @@ export function avatarUrl(userId: string, version: string | null): string {
   return `${baseUrl()}/api/users/${userId}/avatar${v}`;
 }
 
+/**
+ * Full-page URL that kicks off the OAuth login for a provider. This is a real
+ * browser navigation (not fetch): the backend redirects to the provider, then
+ * back to the frontend with the session cookies already set.
+ */
+export function oauthStartUrl(provider: string): string {
+  return `${baseUrl()}/api/auth/oauth/${provider}/start`;
+}
+
+/** Lists the social-login providers the backend has configured. */
+export async function fetchOAuthProviders(): Promise<string[]> {
+  try {
+    const res = await fetch(`${baseUrl()}/api/auth/oauth/providers`, {
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { providers?: string[] };
+    return data.providers ?? [];
+  } catch {
+    // OAuth simply isn't available (endpoint absent / network) — show no buttons.
+    return [];
+  }
+}
+
 /** Uploads the caller's avatar (raw image body) and returns the new version. */
 export async function uploadAvatar(
   file: File,

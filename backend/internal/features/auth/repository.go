@@ -64,3 +64,34 @@ func (r *Repository) FindByID(ctx context.Context, id uuid.UUID) (*models.User, 
 func (r *Repository) DeleteByID(ctx context.Context, id uuid.UUID) error {
 	return r.db.WithContext(ctx).Delete(&models.User{}, "id = ?", id).Error
 }
+
+// FindIdentity returns the identity for a given provider + provider user id, or
+// gorm.ErrRecordNotFound when this external account has never logged in before.
+func (r *Repository) FindIdentity(ctx context.Context, provider, providerUserID string) (*models.UserIdentity, error) {
+	var id models.UserIdentity
+	err := r.db.WithContext(ctx).
+		Where("provider = ? AND provider_user_id = ?", provider, providerUserID).
+		First(&id).Error
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
+}
+
+// CreateIdentity links an external account to an existing user.
+func (r *Repository) CreateIdentity(ctx context.Context, id *models.UserIdentity) error {
+	return r.db.WithContext(ctx).Create(id).Error
+}
+
+// CreateUserWithIdentity creates a brand-new user and its first external
+// identity atomically, so a failure never leaves a user with no way to log in
+// (it has no password) or an orphaned identity.
+func (r *Repository) CreateUserWithIdentity(ctx context.Context, u *models.User, id *models.UserIdentity) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(u).Error; err != nil {
+			return err
+		}
+		id.UserID = u.ID
+		return tx.Create(id).Error
+	})
+}

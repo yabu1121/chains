@@ -108,6 +108,19 @@ func New(cfg *config.Config, db *gorm.DB, c cache.Cache) *echo.Echo {
 		Domain:   cfg.CookieDomain,
 		SameSite: parseSameSite(cfg.CookieSameSite),
 	})
+	// Social login (GitHub, Google). Only registers routes for providers whose
+	// credentials are configured; with none set, the OAuth endpoints are absent.
+	oauthSvc := auth.NewOAuthService(authSvc, c, auth.OAuthProviders{
+		GithubClientID:     cfg.GithubOAuthClientID,
+		GithubClientSecret: cfg.GithubOAuthClientSecret,
+		GoogleClientID:     cfg.GoogleOAuthClientID,
+		GoogleClientSecret: cfg.GoogleOAuthClientSecret,
+		RedirectBaseURL:    cfg.OAuthRedirectBaseURL,
+	})
+	if len(oauthSvc.EnabledProviders()) > 0 {
+		authHandler.EnableOAuth(oauthSvc, cfg.FrontendURL)
+		slog.Info("oauth enabled", "providers", oauthSvc.EnabledProviders())
+	}
 	friendHandler := friend.NewHandler(friendSvc)
 	userHandler := user.NewHandler(user.NewRepository(db))
 	networkHandler := network.NewHandler(networkSvc)

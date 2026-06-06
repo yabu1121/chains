@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"errors"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -32,11 +35,25 @@ type CookieConfig struct {
 type Handler struct {
 	svc    *Service
 	cookie CookieConfig
+
+	// OAuth is optional: nil until EnableOAuth is called, in which case the
+	// social-login routes are not registered. frontendURL is where the browser
+	// is sent after an OAuth round-trip.
+	oauth       *OAuthService
+	frontendURL string
 }
 
 // NewHandler builds a Handler.
 func NewHandler(svc *Service, cookie CookieConfig) *Handler {
 	return &Handler{svc: svc, cookie: cookie}
+}
+
+// EnableOAuth wires social login into the handler. Called from server wiring
+// when any OAuth provider is configured; returns the handler for chaining.
+func (h *Handler) EnableOAuth(oauth *OAuthService, frontendURL string) *Handler {
+	h.oauth = oauth
+	h.frontendURL = frontendURL
+	return h
 }
 
 // RegisterRoutes mounts the auth routes. authmw protects the routes that
@@ -49,6 +66,14 @@ func RegisterRoutes(g *echo.Group, h *Handler, authmw echo.MiddlewareFunc, crede
 	g.POST("/auth/logout", h.Logout, authmw)
 	g.GET("/me", h.Me, authmw)
 	g.DELETE("/me", h.DeleteAccount, authmw)
+
+	if h.oauth != nil {
+		// Public: the browser is redirected here, so these are GET navigations,
+		// not XHR. credentialMW (rate limiting) still applies as an abuse guard.
+		g.GET("/auth/oauth/providers", h.OAuthProviders)
+		g.GET("/auth/oauth/:provider/start", h.OAuthStart, credentialMW...)
+		g.GET("/auth/oauth/:provider/callback", h.OAuthCallback, credentialMW...)
+	}
 }
 
 // Register handles POST /auth/register.
@@ -144,12 +169,70 @@ func (h *Handler) Me(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
+// OAuthProviders handles GET /auth/oauth/providers, listing the enabled social
+// login providers so the frontend knows which buttons to render.
+func (h *Handler) OAuthProviders(c echo.Context) error {
+	return c.JSON(http.StatusOK, echo.Map{"providers": h.oauth.EnabledProviders()})
+}
+
+// OAuthStart handles GET /auth/oauth/:provider/start, redirecting the browser
+// to the provider's consent screen.
+func (h *Handler) OAuthStart(c echo.Context) error {
+	authURL, err := h.oauth.Start(c.Request().Context(), c.Param("provider"))
+	if err != nil {
+		return err
+	}
+	return c.Redirect(http.StatusFound, authURL)
+}
+
+// OAuthCallback handles GET /auth/oauth/:provider/callback. Because this is a
+// top-level browser navigation (not XHR), it cannot return JSON: on success it
+// sets the auth cookies and redirects to the app; on failure it redirects to
+// the login page with a ?error code the frontend can surface.
+func (h *Handler) OAuthCallback(c echo.Context) error {
+	// The provider can report its own failure (e.g. the user denied consent).
+	if provErr := c.QueryParam("error"); provErr != "" {
+		return c.Redirect(http.StatusFound, h.frontendRedirect("/login", "oauth_"+provErr))
+	}
+	session, err := h.oauth.Complete(
+		c.Request().Context(),
+		c.Param("provider"),
+		c.QueryParam("state"),
+		c.QueryParam("code"),
+	)
+	if err != nil {
+		code := "oauth_failed"
+		var appErr *httperr.Error
+		if errors.As(err, &appErr) {
+			code = appErr.Code
+		}
+		return c.Redirect(http.StatusFound, h.frontendRedirect("/login", code))
+	}
+	h.setSessionCookies(c, session)
+	return c.Redirect(http.StatusFound, h.frontendRedirect("/friends", ""))
+}
+
+// frontendRedirect builds an absolute URL back into the frontend, optionally
+// carrying an ?error code.
+func (h *Handler) frontendRedirect(path, errCode string) string {
+	dest := strings.TrimRight(h.frontendURL, "/") + path
+	if errCode != "" {
+		dest += "?error=" + url.QueryEscape(errCode)
+	}
+	return dest
+}
+
+// setSessionCookies writes the access + refresh httpOnly cookies for a session.
+func (h *Handler) setSessionCookies(c echo.Context, s *Session) {
+	c.SetCookie(h.newCookie(middleware.AccessCookieName, s.AccessToken, "/", s.AccessExpires))
+	c.SetCookie(h.newCookie(refreshCookieName, s.RefreshToken, refreshCookiePath, s.RefreshExpires))
+}
+
 // respondWithSession sets the access + refresh cookies and returns the public
 // AuthResponse (access token in the body for non-browser clients; the refresh
 // token is cookie-only).
 func (h *Handler) respondWithSession(c echo.Context, status int, s *Session) error {
-	c.SetCookie(h.newCookie(middleware.AccessCookieName, s.AccessToken, "/", s.AccessExpires))
-	c.SetCookie(h.newCookie(refreshCookieName, s.RefreshToken, refreshCookiePath, s.RefreshExpires))
+	h.setSessionCookies(c, s)
 	return c.JSON(status, AuthResponse{
 		Token:     s.AccessToken,
 		ExpiresAt: s.AccessExpires,

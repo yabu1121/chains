@@ -59,6 +59,25 @@ type Config struct {
 	// an in-memory cache cannot see cross-instance invalidations and serves
 	// stale data. Set REQUIRE_REDIS=false for a single-instance deployment.
 	RequireRedis bool
+
+	// OAuth (GitHub, Google) social login. A provider is enabled only when both
+	// its client id and secret are set; leaving them empty disables that button.
+	//
+	// OAuthRedirectBaseURL is this API's own public base URL (e.g.
+	// https://api.example.com or http://localhost:8080 in dev). The provider
+	// callback is built from it as <base>/api/auth/oauth/<provider>/callback —
+	// that exact URL must be registered in the GitHub/Google OAuth app. It
+	// defaults to the first CORS origin's scheme+host is NOT assumed; set it
+	// explicitly to the API host.
+	//
+	// FrontendURL is where users are sent back to after a completed (or failed)
+	// OAuth login; defaults to the first CORS origin.
+	GithubOAuthClientID     string
+	GithubOAuthClientSecret string
+	GoogleOAuthClientID     string
+	GoogleOAuthClientSecret string
+	OAuthRedirectBaseURL    string
+	FrontendURL             string
 }
 
 // minJWTSecretLen is the minimum acceptable HS256 secret length outside of
@@ -98,6 +117,20 @@ func Load() (*Config, error) {
 		DBMaxIdleConns:    envInt("DB_MAX_IDLE_CONNS", 5),
 		DBConnMaxLifetime: envDuration("DB_CONN_MAX_LIFETIME", time.Hour),
 		DBConnMaxIdleTime: envDuration("DB_CONN_MAX_IDLE_TIME", 10*time.Minute),
+
+		GithubOAuthClientID:     env("GITHUB_OAUTH_CLIENT_ID", ""),
+		GithubOAuthClientSecret: env("GITHUB_OAUTH_CLIENT_SECRET", ""),
+		GoogleOAuthClientID:     env("GOOGLE_OAUTH_CLIENT_ID", ""),
+		GoogleOAuthClientSecret: env("GOOGLE_OAUTH_CLIENT_SECRET", ""),
+		OAuthRedirectBaseURL:    env("OAUTH_REDIRECT_BASE_URL", "http://localhost:8080"),
+		FrontendURL:             env("FRONTEND_URL", ""),
+	}
+
+	// FrontendURL defaults to the first configured CORS origin (the site that
+	// talks to this API), which is almost always where we want to land users
+	// after an OAuth round-trip.
+	if cfg.FrontendURL == "" && len(cfg.CORSOrigins) > 0 {
+		cfg.FrontendURL = cfg.CORSOrigins[0]
 	}
 
 	isDev := cfg.AppEnv == "development" || cfg.AppEnv == "test"

@@ -38,6 +38,11 @@ type userStore interface {
 	FindByEmail(ctx context.Context, email string) (*models.User, error)
 	FindByID(ctx context.Context, id uuid.UUID) (*models.User, error)
 	DeleteByID(ctx context.Context, id uuid.UUID) error
+
+	// OAuth identity linking (see oauth.go).
+	FindIdentity(ctx context.Context, provider, providerUserID string) (*models.UserIdentity, error)
+	CreateIdentity(ctx context.Context, id *models.UserIdentity) error
+	CreateUserWithIdentity(ctx context.Context, u *models.User, id *models.UserIdentity) error
 }
 
 // Service implements registration, login and profile lookup.
