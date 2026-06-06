@@ -316,7 +316,11 @@ function SettingsArea() {
   const [sub, setSub] = useState<SettingsSub | null>(null);
   const { t } = useI18n();
   const reduce = prefersReducedMotion();
-  const dist = reduce ? 0 : 24;
+  // Soft ease-out (no overshoot) for a smooth, drawn-out slide.
+  const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+  // The detail panel is "pulled out" from the right; the menu eases left.
+  const enter = reduce ? 0 : 64;
+  const menuShift = reduce ? 0 : 24;
 
   return (
     <>
@@ -326,10 +330,10 @@ function SettingsArea() {
           <motion.nav
             key="menu"
             className="settings-menu"
-            initial={{ opacity: 0, x: -dist }}
+            initial={{ opacity: 0, x: -menuShift }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -dist }}
-            transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, x: -menuShift }}
+            transition={{ duration: reduce ? 0 : 0.34, ease }}
           >
             {SETTINGS_ITEMS.map((key) => (
               <button
@@ -345,10 +349,10 @@ function SettingsArea() {
         ) : (
           <motion.div
             key={sub}
-            initial={{ opacity: 0, x: dist }}
+            initial={{ opacity: 0, x: enter }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dist }}
-            transition={{ duration: reduce ? 0 : 0.24, ease: [0.16, 1, 0.3, 1] }}
+            exit={{ opacity: 0, x: enter }}
+            transition={{ duration: reduce ? 0 : 0.44, ease }}
           >
             <button
               type="button"
