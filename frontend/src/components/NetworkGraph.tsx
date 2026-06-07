@@ -255,8 +255,8 @@ export function NetworkGraph({
       {/* Stacks on phones (title, then controls + legend) so the heading isn't
           squeezed to ~40% width and broken mid-word; reverts to the title-left
           / controls-right row at md and up. */}
-      <div className="flex flex-col gap-1.5 md:flex-row md:justify-between md:items-center mb-1.5 md:mb-3 px-5 pt-2.5 md:pt-4 pb-0">
-        <h2 className="section-title m-0">
+      <div className="flex flex-col gap-1.5 md:flex-row md:justify-between md:items-center mb-1.5 md:mb-3 px-5 pt-2 md:pt-4 pb-0">
+        <h2 className="section-title m-0 max-[768px]:hidden">
           {t.network.title}
         </h2>
         <div className="flex items-center gap-x-[14px] gap-y-1 flex-wrap">
@@ -294,7 +294,7 @@ export function NetworkGraph({
         </p>
       ) : (
         <>
-          <p className="muted mt-0 mb-0 text-[11px] md:text-[13px] px-5 leading-tight">
+          <p className="muted mt-0 mb-0 text-[11px] md:text-[13px] px-5 leading-tight max-[768px]:hidden">
             {data.nodes.length} people · {data.links.length} connections
             {graph.truncated ? " (showing a capped subset)" : ""}
             {language ? ` · ${matchCount} use ${language}` : ""}
