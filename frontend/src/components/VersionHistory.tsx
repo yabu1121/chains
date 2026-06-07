@@ -13,6 +13,18 @@ type Entry = {
 
 const ENTRIES: Entry[] = [
   {
+    version: "0.5.0",
+    date: "2026-06-07",
+    items: [
+      { ja: "設定をメニュー形式に刷新（プロフィール / バージョン履歴 / 利用規約 / プライバシー / 言語）", en: "Reworked Settings into a menu (profile, changelog, terms, privacy, language)" },
+      { ja: "画面の切り替えをネイティブアプリのような滑らかなアニメーションに", en: "Smoother, native-app-style screen transitions" },
+      { ja: "ネットワーク図を調整（つながりが広がる表示・上部をコンパクトに・言語フィルタ）", en: "Network tuning: spread-out layout, compact header, language filter" },
+      { ja: "スマホのログイン / アカウント作成を画面サイズに最適化", en: "Mobile login / sign-up fitted to the screen" },
+      { ja: "フレンドリクエストからもプロフィールを表示できるように", en: "Open profiles from friend requests too" },
+      { ja: "フッターの現在地表示を分かりやすく", en: "Clearer active tab in the bottom navigation" },
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-06-07",
     items: [
