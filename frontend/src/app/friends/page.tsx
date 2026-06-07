@@ -236,6 +236,7 @@ function Dashboard() {
           setTab={changeTab}
           incomingCount={incomingCount}
           idPrefix="bottom"
+          withPill
         />
       </nav>
 

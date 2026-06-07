@@ -1253,23 +1253,24 @@ button.ghost:hover {
     font-weight: 500;
   }
 
-  /* Clear active state: indigo icon + bold label, a tinted pill, and a short
-     accent bar pinned to the top edge of the tab. */
+  /* Clear active state: indigo icon + bold label + a sliding accent bar. The bar
+     is the framer-motion .nav-pill (shared layoutId), so it glides smoothly from
+     the old tab to the new one on every switch. */
   .bottombar .navbtn.active {
     color: var(--accent);
     font-weight: 700;
-    background: var(--accent-soft);
   }
-  .bottombar .navbtn.active::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 30px;
+  /* Centre with auto margins (left:0/right:0 + width), not a transform:
+     framer-motion's layout animation owns `transform`, so a translateX here
+     would be overridden and leave the bar off-centre after it slides. */
+  .bottombar .nav-pill {
+    inset: 0 0 auto 0;
+    width: 32px;
     height: 3px;
+    margin: 0 auto;
     border-radius: 0 0 3px 3px;
     background: var(--accent);
+    box-shadow: none;
   }
 
   /* Mobile drops the big page headings — the active footer tab tells you where
