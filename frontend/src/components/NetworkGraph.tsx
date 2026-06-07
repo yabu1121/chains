@@ -259,7 +259,7 @@ export function NetworkGraph({
         <h2 className="section-title m-0 max-[768px]:hidden">
           {t.network.title}
         </h2>
-        <div className="flex items-center gap-x-[14px] gap-y-1 flex-wrap">
+        <div className="flex flex-col items-start gap-1.5 md:flex-row md:items-center md:flex-wrap md:gap-x-[14px] md:gap-y-1">
           {graphLanguages.length > 0 ? (
             <Select
               value={language}
