@@ -1114,16 +1114,27 @@ button.ghost:hover {
    the right — vertically centred. The form keeps its own max width via the
    column. Mobile keeps the single stacked column above. */
 @media (min-width: 860px) {
+  /* The brand/lang bar floats at the top so the auth content can centre against
+     the full screen height rather than being pushed down by it. */
+  .brandbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
   /* Wide, bilaterally symmetric split: the brand centred in the left half, the
-     form centred in the right half, both vertically centred. Each column owns an
-     equal share, so the screen reads balanced left-to-right. */
+     form centred in the right half. The page fills the viewport and centres the
+     whole two-column block vertically. */
   .auth-page {
+    min-height: 100dvh;
     max-width: 1100px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     align-items: center;
+    align-content: center;
     gap: clamp(48px, 8vw, 120px);
-    padding: 80px 48px;
+    padding: 48px;
   }
 
   .auth-hero {
@@ -1150,9 +1161,9 @@ button.ghost:hover {
     justify-self: center;
     width: 100%;
     max-width: 400px;
-    /* Measured: register card ≈ 593px tall. Unify both to this so login and
-       register are the same size. */
-    min-height: var(--auth-card-min, 596px);
+    /* Unify login & register to the (taller) register form's natural height so
+       both cards are the same size. Re-measure if the forms change. */
+    min-height: var(--auth-card-min, 740px);
     display: flex;
     flex-direction: column;
   }
