@@ -5,7 +5,6 @@ import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useReveal } from "../book/use-press-entrance";
 import { PRESS_SPRING } from "../book/motion";
-import { SplitText } from "../motion/split-text";
 import { ScrambleText } from "../motion/scramble-text";
 import { useReducedMotionSafe } from "../motion/use-reduced-motion-safe";
 import { withMark } from "../motion/mark";
@@ -147,7 +146,7 @@ export default function Hero() {
       >
         <div className="max-w-2xl">
           <h1 className="font-mono text-[clamp(2.5rem,8vw,5.5rem)] font-medium leading-[1.05] tracking-tight text-bg">
-            {/* 「つながりが、」の見出しはロゴに置き換え（オーナー指示）。タグラインは残す。
+            {/* 見出し（「つながりが、」「そのまま地図になる。」）はロゴ一枚に置き換え（オーナー指示）。
                 ロゴは明るい地用で暗い地だと読めないため、背後にだけ柔らかい光のにじみを敷く。 */}
             <motion.span
               className="relative mb-3 inline-block"
@@ -168,14 +167,6 @@ export default function Hero() {
                 className="relative h-auto w-[min(82%,400px)]"
               />
             </motion.span>
-            <SplitText
-              as="span"
-              by="char"
-              startDelay={140}
-              className="block"
-            >
-              {copy.hero.heading[1]}
-            </SplitText>
           </h1>
 
           <p className="reveal mt-6 max-w-md text-base leading-relaxed text-bg/75 sm:text-lg">
