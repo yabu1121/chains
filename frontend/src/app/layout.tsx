@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { JetBrains_Mono, IBM_Plex_Sans_JP } from "next/font/google";
+import { JetBrains_Mono, IBM_Plex_Sans_JP, Klee_One } from "next/font/google";
 import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import { ChainBackground } from "@/components/ChainBackground";
@@ -24,6 +24,15 @@ const jp = IBM_Plex_Sans_JP({
   variable: "--font-jp",
   display: "swap",
   weight: ["400", "500", "600", "700"],
+  preload: false,
+});
+
+// Klee One: ランディングページ（/）の見出し・本文用の手書き楷書。`.lp` スコープでのみ
+// --font-display / --font-body に当てる（アプリ本体の書体には影響しない）。preload:false。
+const klee = Klee_One({
+  variable: "--font-klee",
+  display: "swap",
+  weight: ["400", "600"],
   preload: false,
 });
 
@@ -66,7 +75,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   const apiBaseUrl =
     process.env.API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
   return (
-    <html lang="ja" className={`${mono.variable} ${jp.variable}`}>
+    <html
+      lang="ja"
+      suppressHydrationWarning
+      className={`${mono.variable} ${jp.variable} ${klee.variable}`}
+    >
       <head>
         {/* Next emits the modern `mobile-web-app-capable` and strips the legacy
             apple-prefixed name, but older iOS Safari still keys standalone
@@ -79,6 +92,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script
           dangerouslySetInnerHTML={{
             __html: `window.__CHAINS_CONFIG__=${JSON.stringify({ apiBaseUrl })}`,
+          }}
+        />
+        {/* LP（/）の段階リビールの初期非表示を有効化（globals の `.js .reveal`）。 */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: "document.documentElement.classList.add('js')",
           }}
         />
         <ServiceWorkerRegister />

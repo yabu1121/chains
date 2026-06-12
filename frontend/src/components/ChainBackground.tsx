@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { animate, stagger, svg } from "animejs";
 import { prefersReducedMotion } from "@/lib/anim";
 
@@ -69,6 +70,8 @@ function buildEdges(maxDist: number, maxDeg: number) {
 export function ChainBackground() {
   const rootRef = useRef<SVGSVGElement>(null);
   const edges = useMemo(() => buildEdges(250, 3), []);
+  // ランディングページ（/）は自前の 3D 背景を使うので、アプリの chain 背景は出さない。
+  const pathname = usePathname();
 
   useEffect(() => {
     const root = rootRef.current;
@@ -107,6 +110,8 @@ export function ChainBackground() {
       drift?.revert();
     };
   }, []);
+
+  if (pathname === "/") return null;
 
   return (
     <svg

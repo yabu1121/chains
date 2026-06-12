@@ -24,6 +24,8 @@
   /* 藍 / indigo ink — a warm, analog blue used as a spark, never a fill. */
   --color-accent: #2d4f7c;
   --color-accent-press: #223c5e;
+  /* ランディングページ（/）の暗い地色。アプリ本体では未使用。 */
+  --color-night: #1e3556;
   --color-accent-soft: rgba(45, 79, 124, 0.1);
   --color-danger: #b8412c; /* warm vermilion */
   --color-ok: #2f6a4f;
@@ -1388,3 +1390,132 @@ button.ghost:hover {
 }
 
 } /* end @layer components */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Landing page (/) — scoped to `.lp`. 暗い・手書き書体のマーケLP。アプリの
+   light/mono UI とは別系統で、.lp の外には漏らさない。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* LP 内の要素リセット（base レイヤ＝ユーティリティが勝つ）。本体は preflight 無しのため
+   既定マージン/箇条書きが残るので LP だけ消す。a/button は base に移したので
+   text-* / bg-* 等のユーティリティが当たる。 */
+@layer base {
+  .lp :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {
+    margin: 0;
+  }
+  .lp :where(ul, ol) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+/* LP のボタンはユーティリティで装う。アプリ本体の `button`（components 層）を
+   .lp 内では素に戻す（同層・高詳細度で勝つ）。LP のユーティリティ(utilities 層)が更に勝つ。 */
+@layer components {
+  .lp button {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+  }
+  .lp button:hover {
+    background: transparent;
+  }
+}
+
+/* LP のスコープ: 暗い地・手書き Klee・全幅 showcase の横はみ出し抑制。font 変数を
+   上書きすると配下の font-display/font-body だけ Klee になる（本体書体は無傷）。
+   mono は html の --font-mono(JetBrains)のまま。 */
+.lp {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--color-night);
+  color: var(--color-ink);
+  --font-body: var(--font-klee), var(--font-jp), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-klee), var(--font-jp), ui-sans-serif, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* 入場リビールの初期非表示（LP 内のみ）。 */
+@media (prefers-reduced-motion: no-preference) {
+  .js .lp [data-reveal],
+  .js .lp .reveal {
+    opacity: 0;
+  }
+}
+
+/* 上端ハイライト（装飾）。 */
+.lit-top {
+  position: relative;
+}
+.lit-top::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 42%;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 流れる点線（マーチングドット）。 */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.flow-dash {
+  animation: dash-flow 1.6s linear infinite;
+}
+
+/* スライドショーの進行バー。 */
+@keyframes slideshow-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* アンビエント漂い（AmbientField）。 */
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: var(--ambient-o0, 0.1);
+  }
+  to {
+    transform: translate3d(var(--ambient-dx, 0), var(--ambient-dy, 0), 0);
+    opacity: var(--ambient-o1, 0.2);
+  }
+}
+
+/* reduced-motion 安全網（LP）。 */
+@media (prefers-reduced-motion: reduce) {
+  #network svg path {
+    stroke-dashoffset: 0 !important;
+  }
+  #network svg g {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  [data-ambient] {
+    animation: none !important;
+  }
+  .flow-dash {
+    animation: none !important;
+  }
+}
