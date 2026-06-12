@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useReveal } from "../book/use-press-entrance";
 import { PRESS_SPRING } from "../book/motion";
@@ -146,9 +147,27 @@ export default function Hero() {
       >
         <div className="max-w-2xl">
           <h1 className="font-mono text-[clamp(2.5rem,8vw,5.5rem)] font-medium leading-[1.05] tracking-tight text-bg">
-            <SplitText as="span" by="char" className="block">
-              {copy.hero.heading[0]}
-            </SplitText>
+            {/* 「つながりが、」の見出しはロゴに置き換え（オーナー指示）。タグラインは残す。
+                ロゴは明るい地用で暗い地だと読めないため、背後にだけ柔らかい光のにじみを敷く。 */}
+            <motion.span
+              className="relative mb-3 inline-block"
+              initial={prefersReduced ? false : { opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -inset-6 rounded-[2.5rem] blur-[28px] [background:radial-gradient(ellipse_at_center,rgba(250,248,244,0.9),rgba(250,248,244,0.36)_58%,transparent_80%)]"
+              />
+              <Image
+                src="/chains-logo.png"
+                alt="chains"
+                width={493}
+                height={307}
+                priority
+                className="relative h-auto w-[min(82%,400px)]"
+              />
+            </motion.span>
             <SplitText
               as="span"
               by="char"
