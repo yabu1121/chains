@@ -1,0 +1,108 @@
+"use client";
+
+import { useState } from "react";
+import useSWR from "swr";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { Guard } from "@/components/Guard";
+import { ProfileView } from "@/components/ProfileView";
+import { AddFriendDialog } from "@/components/AddFriendDialog";
+import { TopBrandBar } from "@/components/TopBrandBar";
+import { useAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
+import { getProfileByUsername, useFriends } from "@/lib/hooks";
+import { useReveal } from "@/lib/anim";
+import { useI18n } from "@/lib/i18n";
+import type { PublicProfile } from "@/lib/types";
+
+export default function AddPage() {
+  return (
+    <Guard>
+      <AddByUsername />
+    </Guard>
+  );
+}
+
+function AddByUsername() {
+  const { t } = useI18n();
+  const params = useParams<{ username: string }>();
+  const username = params.username;
+  const { user } = useAuth();
+  const { friends } = useFriends();
+  const cardRef = useReveal<HTMLDivElement>();
+
+  const { data, error, isLoading } = useSWR<PublicProfile>(
+    username ? `/api/users/by-username/${username}` : null,
+    () => getProfileByUsername(username),
+  );
+
+  const [requested, setRequested] = useState(false);
+  const [showDialog, setShowDialog] = useState(false);
+
+  const isSelf = !!data && user?.id === data.id;
+  const isFriend = !!data && friends.some((f) => f.user.id === data.id);
+
+  return (
+    <>
+      <TopBrandBar />
+      <div className="container center-narrow">
+        <h1 className="auth-wordmark mb-6">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="auth-logo" src="/chains-logo.png" alt="chains" />
+        </h1>
+        <div className="card" ref={cardRef}>
+        {error ? (
+          <>
+            <p className="error">
+              {error instanceof ApiError && error.status === 404
+                ? t.add.notFound
+                : t.add.couldNotLoad}
+            </p>
+            <p className="mt-3">
+              <Link href="/friends">{t.add.backToChains}</Link>
+            </p>
+          </>
+        ) : isLoading || !data ? (
+          <p className="empty">{t.common.loading}</p>
+        ) : (
+          <ProfileView
+            profile={data}
+            actions={
+              isSelf ? (
+                <Link href="/friends">{t.add.ownCode}</Link>
+              ) : isFriend ? (
+                <span className="text-ok">
+                  {t.add.alreadyFriends}
+                </span>
+              ) : requested ? (
+                <div>
+                  <p className="text-ok mt-0 mb-2">
+                    {t.add.requestSent}
+                  </p>
+                  <Link href="/friends">{t.add.backToChainsPlain}</Link>
+                </div>
+              ) : (
+                <button
+                  className="primary w-auto"
+                  onClick={() => setShowDialog(true)}
+                >
+                  {t.common.addFriend}
+                </button>
+              )
+            }
+          />
+        )}
+      </div>
+
+      {showDialog && data ? (
+        <AddFriendDialog
+          addresseeId={data.id}
+          displayName={data.display_name}
+          onClose={() => setShowDialog(false)}
+          onSent={() => setRequested(true)}
+        />
+      ) : null}
+      </div>
+    </>
+  );
+}

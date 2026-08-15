@@ -1,0 +1,26 @@
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# TypeScript incremental build cache (machine-local, should not be tracked)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Go
+/backend/bin/
+/backend/api
+/backend/devserver
+*.test
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Misc
+*.log
+.DS_Store
+# Windows "mark of the web" alternate-data-stream sidecars from copied files
+*:Zone.Identifier

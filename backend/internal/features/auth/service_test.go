@@ -1,0 +1,270 @@
+package auth
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+
+	"github.com/cymed/chains/backend/internal/models"
+	"github.com/cymed/chains/backend/internal/platform/cache"
+	"github.com/cymed/chains/backend/internal/platform/httperr"
+	"github.com/cymed/chains/backend/internal/platform/jwt"
+)
+
+// fakeUserStore is an in-memory userStore for fast service tests.
+type fakeUserStore struct {
+	byEmail    map[string]*models.User
+	byUsername map[string]*models.User
+	byID       map[uuid.UUID]*models.User
+	identities map[string]*models.UserIdentity // key: provider + "\x00" + providerUserID
+}
+
+func newFakeUserStore() *fakeUserStore {
+	return &fakeUserStore{
+		byEmail:    map[string]*models.User{},
+		byUsername: map[string]*models.User{},
+		byID:       map[uuid.UUID]*models.User{},
+		identities: map[string]*models.UserIdentity{},
+	}
+}
+
+func identityKey(provider, providerUserID string) string {
+	return provider + "\x00" + providerUserID
+}
+
+func (f *fakeUserStore) FindIdentity(_ context.Context, provider, providerUserID string) (*models.UserIdentity, error) {
+	id, ok := f.identities[identityKey(provider, providerUserID)]
+	if !ok {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return id, nil
+}
+
+func (f *fakeUserStore) CreateIdentity(_ context.Context, id *models.UserIdentity) error {
+	key := identityKey(id.Provider, id.ProviderUserID)
+	if _, ok := f.identities[key]; ok {
+		return gorm.ErrDuplicatedKey
+	}
+	cp := *id
+	f.identities[key] = &cp
+	return nil
+}
+
+func (f *fakeUserStore) CreateUserWithIdentity(ctx context.Context, u *models.User, id *models.UserIdentity) error {
+	if err := f.Create(ctx, u); err != nil {
+		return err
+	}
+	id.UserID = u.ID
+	return f.CreateIdentity(ctx, id)
+}
+
+func (f *fakeUserStore) Create(_ context.Context, u *models.User) error {
+	if _, ok := f.byEmail[u.Email]; ok {
+		return gorm.ErrDuplicatedKey
+	}
+	if _, ok := f.byUsername[u.Username]; ok {
+		return gorm.ErrDuplicatedKey
+	}
+	cp := *u
+	f.byEmail[u.Email] = &cp
+	f.byUsername[u.Username] = &cp
+	f.byID[u.ID] = &cp
+	return nil
+}
+
+func (f *fakeUserStore) ExistsByEmail(_ context.Context, email string) (bool, error) {
+	_, ok := f.byEmail[email]
+	return ok, nil
+}
+
+func (f *fakeUserStore) ExistsByUsername(_ context.Context, username string) (bool, error) {
+	_, ok := f.byUsername[username]
+	return ok, nil
+}
+
+func (f *fakeUserStore) FindByEmail(_ context.Context, email string) (*models.User, error) {
+	u, ok := f.byEmail[email]
+	if !ok {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return u, nil
+}
+
+func (f *fakeUserStore) FindByID(_ context.Context, id uuid.UUID) (*models.User, error) {
+	u, ok := f.byID[id]
+	if !ok {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return u, nil
+}
+
+func (f *fakeUserStore) DeleteByID(_ context.Context, id uuid.UUID) error {
+	u, ok := f.byID[id]
+	if !ok {
+		return gorm.ErrRecordNotFound
+	}
+	delete(f.byID, id)
+	delete(f.byEmail, u.Email)
+	delete(f.byUsername, u.Username)
+	return nil
+}
+
+func newTestService(store userStore) *Service {
+	tokens := NewTokenStore(cache.NewMemory(), time.Hour)
+	return NewService(store, jwt.NewManager("test-secret", time.Hour), tokens, bcrypt.MinCost)
+}
+
+func assertHTTPStatus(t *testing.T, err error, status int, code string) {
+	t.Helper()
+	var appErr *httperr.Error
+	require.True(t, errors.As(err, &appErr), "expected *httperr.Error, got %T (%v)", err, err)
+	require.Equal(t, status, appErr.Status)
+	require.Equal(t, code, appErr.Code)
+}
+
+func TestRegister_Success(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	resp, err := svc.Register(context.Background(), RegisterRequest{
+		Email:       "Alice@Example.com",
+		Username:    "Alice_01",
+		Password:    "supersecret",
+		DisplayName: "Alice",
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.AccessToken)
+	require.NotEmpty(t, resp.RefreshToken)
+	require.Equal(t, "alice@example.com", resp.User.Email, "email should be normalised")
+	require.Equal(t, "alice_01", resp.User.Username, "username should be normalised to lowercase")
+	require.NotEqual(t, uuid.Nil, resp.User.ID)
+	require.WithinDuration(t, time.Now().Add(time.Hour), resp.AccessExpires, time.Minute)
+}
+
+func TestRegister_DuplicateEmail(t *testing.T) {
+	store := newFakeUserStore()
+	svc := newTestService(store)
+	req := RegisterRequest{Email: "bob@example.com", Username: "bob", Password: "supersecret", DisplayName: "Bob"}
+	_, err := svc.Register(context.Background(), req)
+	require.NoError(t, err)
+
+	_, err = svc.Register(context.Background(), req)
+	assertHTTPStatus(t, err, 409, "email_taken")
+}
+
+func TestRegister_DuplicateUsername(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "one@example.com", Username: "samehandle", Password: "supersecret", DisplayName: "One",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Register(context.Background(), RegisterRequest{
+		Email: "two@example.com", Username: "SameHandle", Password: "supersecret", DisplayName: "Two",
+	})
+	assertHTTPStatus(t, err, 409, "username_taken")
+}
+
+func TestRegister_InvalidUsername(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "x@example.com", Username: "ab", Password: "supersecret", DisplayName: "X",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_username")
+}
+
+func TestRegister_PasswordTooShort(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "s@example.com", Username: "shortpw", Password: "1234567", DisplayName: "S",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestRegister_PasswordTooLongInBytes(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	// 73 single-byte chars exceeds bcrypt's 72-byte limit.
+	long := strings.Repeat("a", 73)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "l@example.com", Username: "longpw", Password: long, DisplayName: "L",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestRegister_MultibytePasswordOverByteLimit(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	// 25 three-byte runes = 75 bytes, but only 25 runes — would pass a
+	// rune-based max=72 yet must be rejected by the byte check.
+	pw := strings.Repeat("あ", 25)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "m@example.com", Username: "multipw", Password: pw, DisplayName: "M",
+	})
+	assertHTTPStatus(t, err, 400, "invalid_password")
+}
+
+func TestLogin_OverlongPasswordRejectedUniformly(t *testing.T) {
+	store := newFakeUserStore()
+	svc := newTestService(store)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "u@example.com", Username: "user", Password: "supersecret", DisplayName: "U",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Login(context.Background(), LoginRequest{
+		Email: "u@example.com", Password: strings.Repeat("a", 73),
+	})
+	assertHTTPStatus(t, err, 401, "invalid_credentials")
+}
+
+func TestRegister_StoresHashedPassword(t *testing.T) {
+	store := newFakeUserStore()
+	svc := newTestService(store)
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "carol@example.com", Username: "carol", Password: "supersecret", DisplayName: "Carol",
+	})
+	require.NoError(t, err)
+
+	stored := store.byEmail["carol@example.com"]
+	require.NotEqual(t, "supersecret", stored.PasswordHash)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(stored.PasswordHash), []byte("supersecret")))
+}
+
+func TestLogin_Success(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "dave@example.com", Username: "dave", Password: "supersecret", DisplayName: "Dave",
+	})
+	require.NoError(t, err)
+
+	resp, err := svc.Login(context.Background(), LoginRequest{Email: "DAVE@example.com", Password: "supersecret"})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.AccessToken)
+}
+
+func TestLogin_WrongPassword(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Register(context.Background(), RegisterRequest{
+		Email: "erin@example.com", Username: "erin", Password: "supersecret", DisplayName: "Erin",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.Login(context.Background(), LoginRequest{Email: "erin@example.com", Password: "wrongpass"})
+	assertHTTPStatus(t, err, 401, "invalid_credentials")
+}
+
+func TestLogin_UnknownUser(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Login(context.Background(), LoginRequest{Email: "ghost@example.com", Password: "whatever1"})
+	assertHTTPStatus(t, err, 401, "invalid_credentials")
+}
+
+func TestMe_NotFound(t *testing.T) {
+	svc := newTestService(newFakeUserStore())
+	_, err := svc.Me(context.Background(), uuid.New())
+	assertHTTPStatus(t, err, 404, "user_not_found")
+}

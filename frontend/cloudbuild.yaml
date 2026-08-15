@@ -1,0 +1,19 @@
+# Builds the frontend image with API_ORIGIN baked in at build time. Required
+# because next.config.mjs rewrites() (the /api -> backend proxy) is frozen into
+# the route manifest during `next build` (output: standalone), so a runtime env
+# var is not enough. Invoke with:
+#   gcloud builds submit frontend --config frontend/cloudbuild.yaml \
+#     --substitutions _API_ORIGIN=<backend-url>,_IMG=<image:tag>
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'API_ORIGIN=${_API_ORIGIN}'
+      - '-t'
+      - '${_IMG}'
+      - '.'
+images:
+  - '${_IMG}'
+options:
+  logging: CLOUD_LOGGING_ONLY

@@ -1,0 +1,2415 @@
+/* Tailwind v4. We import theme + utilities but deliberately NOT preflight: the
+   app ships its own resets/base styles (below), and Tailwind's preflight would
+   strip element defaults (list markers, heading sizes) that the legal pages and
+   editorial type rely on. The one preflight rule we do want — a default
+   border-style so the `border` utilities are visible — is added in @layer base. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Design tokens. In Tailwind v4 these @theme entries generate utilities:
+   --color-ink → bg-ink / text-ink / border-ink, --color-accent → text-accent,
+   --font-display → font-display, --text-hero → text-hero, --radius-card →
+   rounded-card. One source of truth for the whole app.
+   ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-bg: #faf8f4; /* warm paper base — an edited page, not a SaaS grey */
+  --color-panel: #ffffff;
+  --color-panel-2: #f1eee8;
+  --color-border: #e6e1d8;
+  --color-ink: #16181d; /* near-black editorial ink */
+  --color-text: #16181d;
+  --color-muted: #5b616f; /* ~5.4:1 on paper — AA for small mono captions */
+  /* 藍 / indigo ink — a warm, analog blue used as a spark, never a fill. */
+  --color-accent: #2d4f7c;
+  --color-accent-press: #223c5e;
+  /* ランディングページ（/）の暗い地色。アプリ本体では未使用。 */
+  --color-night: #1e3556;
+  --color-accent-soft: rgba(45, 79, 124, 0.1);
+  --color-danger: #b8412c; /* warm vermilion */
+  --color-ok: #2f6a4f;
+
+  /* Latin/English renders in JetBrains Mono (--font-mono from layout.tsx);
+     Japanese glyphs fall through to IBM Plex Sans JP (--font-jp). */
+  --font-body: var(--font-mono), var(--font-jp), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-body);
+
+  /* Editorial type scale — big, decisive jumps so headings dominate. */
+  --text-hero: clamp(2.75rem, 6vw, 4.5rem);
+  --text-h1: clamp(1.75rem, 3.5vw, 2.5rem);
+  --text-h2: 1.5rem;
+
+  --radius-card: 14px;
+}
+
+/* Token aliases. A handful of raw rules that can't be expressed as utilities —
+   SVG fills (the chain background), the <body>/<html> base, the responsive
+   @media nav overrides, and keyframes — still reference these short names. They
+   resolve to the @theme tokens above, so there is a single source of truth. */
+:root {
+  --bg: var(--color-bg);
+  --panel: var(--color-panel);
+  --panel-2: var(--color-panel-2);
+  --border: var(--color-border);
+  --ink: var(--color-ink);
+  --text: var(--color-text);
+  --muted: var(--color-muted);
+  --accent: var(--color-accent);
+  --accent-press: var(--color-accent-press);
+  --accent-soft: var(--color-accent-soft);
+  --danger: var(--color-danger);
+  --ok: var(--color-ok);
+  --radius: var(--radius-card);
+  --step-hero: var(--text-hero);
+  --step-h1: var(--text-h1);
+  --step-h2: var(--text-h2);
+  --grad: var(--color-ink);
+  --sidebar-w: 240px;
+  --bottombar-h: 60px;
+}
+
+/* Mobile: keep scrolling but hide the scrollbars for an app-like, chrome-free
+   feel — content still scrolls, only the visible bar is suppressed. Kept
+   UNLAYERED (outside @layer) on purpose: inside Tailwind's component layer the
+   build pipeline pruned these rules. */
+@media (max-width: 768px) {
+  html,
+  body,
+  .app-main,
+  .content,
+  .modal-body,
+  .modal-card,
+  .card {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* old Edge/IE */
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  .app-main::-webkit-scrollbar,
+  .content::-webkit-scrollbar,
+  .modal-body::-webkit-scrollbar,
+  .modal-card::-webkit-scrollbar,
+  .card::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none; /* WebKit (iOS Safari / Android Chrome) */
+  }
+}
+
+/* Mobile auth (login / sign-up): fit the screen without scrolling. Drop the top
+   app icon and the whole wordmark hero, and tighten the card, fields and
+   spacing. Kept UNLAYERED on purpose — the same rules inside Tailwind's
+   component layer were pruned/overridden by the build. Desktop (≥860px) keeps
+   its full two-column hero (that media block lives later, in the layer). */
+@media (max-width: 859px) {
+  /* Float the language switcher to the top-right (the redundant app icon is
+     hidden) so the auth screen can own the full viewport height below it. */
+  .brandbar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: auto;
+    margin: 0;
+    padding: 10px 14px;
+    z-index: 10;
+    justify-content: flex-end;
+  }
+  .brandbar-mark {
+    display: none; /* the redundant top-bar icon — the hero logo is the brand */
+  }
+
+  /* Fill the screen: the page is full height, the logo sits top-left (the
+     language switcher floats top-right), and the card grows into the space
+     below so login and sign-up are the same size. */
+  .auth-page {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 16px max(16px, env(safe-area-inset-bottom));
+  }
+  .auth-hero {
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* logo top-left */
+    text-align: left;
+  }
+  .auth-logo {
+    height: 38px;
+  }
+  .auth-card {
+    margin-top: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+  }
+  /* Centre the content so login's shorter form sits balanced (no wasted bottom);
+     sign-up fills the card and these auto margins collapse to zero. */
+  .auth-card > :first-child {
+    margin-top: auto;
+  }
+  .auth-card > :last-child {
+    margin-bottom: auto;
+  }
+  /* Tighten the sign-up form a touch so it fits more comfortably. */
+  .auth-card label {
+    margin-top: 6px;
+  }
+  .auth-card input {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+  .oauth-btn {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+}
+
+/* Preflight is disabled, but the `border` utilities need a default border-style
+   to be visible AND a 0 width so elements without an explicit border stay
+   borderless. This is the one preflight rule we keep — both halves matter:
+   without `border-width: 0`, every plain element would render the UA default
+   `medium` (3px) border once we force `border-style: solid`. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-width: 0;
+    border-style: solid;
+  }
+}
+
+/* Everything below lives in the `components` layer so Tailwind utilities (which
+   sit in the later `utilities` layer) can override these class/element styles
+   straight from the markup — e.g. `className="card mt-8"` now wins. */
+@layer components {
+
+* {
+  box-sizing: border-box;
+}
+
+/* Visible keyboard focus everywhere — indigo ring offset from the element.
+   Inputs/select keep their own focus styling; this guarantees buttons, links,
+   nav items and custom controls are never left without a focus indicator. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Smooth, modern easing reused across entrance animations. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Top bar settles in from slightly above so it doesn't pop in abruptly. */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Ambient chain background + stacking ───────────────────────────── */
+
+.chain-bg {
+  /* Faint, like a schematic pencilled on the paper. */
+  @apply fixed inset-0 w-full h-full z-0 pointer-events-none opacity-[0.12];
+}
+
+.chain-bg .cb-edge {
+  stroke: var(--ink);
+  stroke-width: 0.75;
+  stroke-linecap: round;
+}
+
+.chain-bg .cb-node {
+  fill: var(--accent);
+}
+
+.app-root {
+  @apply relative z-[1];
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  /* Nicer rag on paragraphs without orphans. */
+  text-wrap: pretty;
+}
+
+/* Flat warm paper — the old multi-colour radial washes read as generic; the
+   editorial look leans on type and rules for interest, not background colour. */
+body {
+  background: var(--bg);
+}
+
+/* Paper grain — a faint fractal-noise overlay gives the flat paper an analog,
+   printed texture (no gradients). Fixed, non-interactive, multiplied so it
+   darkens slightly into the warm base rather than greying it out. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.container {
+  @apply max-w-[720px] mx-auto px-4 pt-6 pb-16;
+}
+
+/* ── App shell: sidebar (desktop) + main, bottom bar (mobile) ───────── */
+
+.app-shell {
+  @apply flex min-h-dvh;
+}
+
+.sidebar {
+  @apply flex flex-col w-[240px] flex-shrink-0 px-[14px] py-5 border-r border-border bg-panel sticky top-0 h-dvh;
+}
+
+.sidebar .brand {
+  @apply mx-2 mt-1 mb-[22px];
+}
+
+.sidebar-nav {
+  @apply flex flex-col gap-1;
+}
+
+.sidebar-foot {
+  @apply mt-auto pt-4 border-t border-border flex flex-col gap-[10px];
+}
+
+.app-main {
+  @apply flex-1 min-w-0 flex flex-col min-h-dvh;
+}
+
+.content {
+  @apply max-w-[1040px] w-full mx-auto px-7 pt-7 pb-20;
+}
+
+/* Network tab: let the graph fill the whole main area (full width + height). */
+.content--full {
+  @apply max-w-none flex-1 min-h-0 p-0 flex flex-col;
+}
+
+/* The animated tab wrapper must also stretch so the graph can fill it. */
+.tab-panel--full {
+  @apply flex-1 min-h-0 flex flex-col;
+}
+
+/* Let touch swipes pan/zoom the graph instead of scrolling the page. */
+.graph-canvas,
+.graph-canvas canvas {
+  @apply touch-none overscroll-none;
+}
+
+.bottombar {
+  @apply hidden;
+}
+
+/* Nav buttons – shared by sidebar and bottom bar */
+.navbtn {
+  @apply relative flex items-center gap-2 w-full px-3 py-[10px] border-0 rounded-lg bg-transparent text-text font-medium text-left cursor-pointer;
+  font: inherit;
+  transition: background 0.12s ease;
+}
+
+.navbtn:hover {
+  @apply bg-panel-2;
+}
+
+/* Active fill is the sliding .nav-pill (framer-motion layoutId) sitting behind
+   the label — so the button itself stays transparent. White-based sidebar:
+   a soft tinted pill with the accent colour as text, not a solid dark fill. */
+.navbtn.active {
+  @apply text-accent font-semibold;
+}
+
+.nav-pill {
+  @apply absolute inset-0 z-0 rounded-lg bg-accent-soft shadow-[inset_0_0_0_1px_rgba(45,79,124,0.18)];
+}
+
+.navbtn .nav-label,
+.navbtn .badge {
+  @apply relative z-[1];
+}
+
+/* Nav glyphs sit above the sliding pill and inherit a muted ink until the item
+   is hovered or active, when they pick up the indigo accent like the label. */
+.nav-ico {
+  @apply relative z-[1] flex-none;
+  color: var(--muted);
+  transition: color 0.12s ease;
+}
+
+.navbtn:hover .nav-ico,
+.navbtn.active .nav-ico {
+  color: var(--accent);
+}
+
+/* ── Collapsible sidebar (desktop) ─────────────────────────────────────
+   Expanded → 240px with labels; collapsed → a 72px rail of icons only. The
+   width animates; labels are removed (not just hidden) so they don't reflow. */
+.sidebar {
+  transition: width 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.sidebar.collapsed {
+  @apply w-[72px] px-2 items-center;
+}
+
+.sidebar.collapsed .navbtn,
+.sidebar.collapsed .collapse-toggle {
+  @apply justify-center px-0;
+}
+
+/* Drop the labels in the rail — width is the icon's, not the word's. */
+.sidebar.collapsed .nav-label {
+  display: none;
+}
+
+.sidebar.collapsed .brand {
+  @apply mx-auto;
+}
+
+.sidebar.collapsed .brand-logo {
+  @apply h-9 w-9;
+}
+
+/* Icon-only friends button: float the count badge onto the glyph's corner
+   instead of trailing a (now hidden) label. */
+.sidebar.collapsed .navbtn .badge {
+  @apply absolute top-1 right-[14px] z-[2];
+}
+
+/* The collapse toggle reads like a quieter nav row pinned to the sidebar foot. */
+.collapse-toggle {
+  @apply flex items-center gap-2 w-full px-3 py-2 border-0 rounded-lg bg-transparent text-muted cursor-pointer;
+  font: inherit;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.collapse-toggle:hover {
+  @apply bg-panel-2 text-text;
+}
+
+.chevron-ico {
+  @apply flex-none;
+  transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Flip the chevron to point outward (expand) when the rail is collapsed. */
+.sidebar.collapsed .chevron-ico {
+  transform: scaleX(-1);
+}
+
+/* ── Settings menu: a list of section rows (native-app style) ─────────── */
+.settings-menu {
+  @apply flex flex-col rounded-card border border-border bg-panel overflow-hidden;
+}
+
+.settings-menu-item {
+  @apply flex items-center justify-between w-full px-[18px] py-4 bg-transparent text-left text-text cursor-pointer border-0 border-b border-border;
+  font: inherit;
+  transition: background 0.12s ease;
+}
+
+.settings-menu-item:last-child {
+  border-bottom-width: 0;
+}
+
+.settings-menu-item:hover {
+  @apply bg-panel-2;
+}
+
+/* The row's trailing chevron points right (drill-in). */
+.settings-menu-item .chevron-ico {
+  @apply text-muted;
+  transform: scaleX(-1);
+}
+
+/* Back control above a drilled-in section. Chevron stays left-pointing. */
+.settings-back {
+  @apply inline-flex items-center gap-1 mb-4 px-0 py-1 bg-transparent border-0 text-muted cursor-pointer;
+  font: inherit;
+}
+
+.settings-back:hover {
+  @apply text-text;
+}
+
+.topbar {
+  @apply hidden items-center justify-between px-4 py-[14px] border-b border-border bg-panel;
+}
+
+.brand {
+  @apply font-display font-bold text-xl text-ink;
+  font-optical-sizing: auto;
+  letter-spacing: -0.01em;
+}
+
+/* Wordmark logo in the sidebar / mobile topbar brand button. This wordmark is
+   tall (≈1.6:1) and uses an outlined typeface, so it needs a generous size to
+   stay legible. */
+.brand-logo {
+  @apply block h-[30px] w-auto;
+}
+
+/* The sidebar has room (240px) — show the wordmark large enough to read. */
+.sidebar .brand-logo {
+  @apply h-[52px];
+}
+
+/* The brand doubles as a button (click → your profile); strip the chrome but
+   keep the logo type, and let it sit left-aligned like the old text. */
+button.brand {
+  /* `bg-none` only drops the background *image*; the base button rule still
+     paints bg-panel-2, which left a grey box behind the logo. Force it
+     transparent so the wordmark sits straight on the bar. */
+  @apply inline-block bg-transparent border-0 p-0 text-left cursor-pointer;
+  font-family: inherit;
+}
+
+.card {
+  /* Flat, crisp panel — depth comes from the warm border and paper grain, not
+     a floaty drop shadow. */
+  @apply rounded-card border border-border bg-panel p-[22px] mb-4;
+  transition: border-color 0.18s ease;
+  animation: fade-in-up 0.34s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.card:hover {
+  @apply border-[#d8d1c4];
+}
+
+/* Area title: the one large editorial heading on an in-app view, in Fraunces.
+   Gives the dashboard the type hierarchy the brief calls for (login is no longer
+   the only place the display face appears). */
+.area-title {
+  @apply font-display text-h1 font-semibold text-ink;
+  font-optical-sizing: auto;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin: 4px 0 18px;
+}
+
+/* Section label set like a ledger / spec marker: mono, tracked, with a short
+   indigo tick before it. Deliberate and printed-feeling, not the generic tiny
+   grey caps of a default dashboard. */
+.section-title {
+  @apply flex items-center gap-[9px] text-[11px] font-medium uppercase text-muted;
+  letter-spacing: 0.12em;
+  margin: 0 0 14px;
+}
+
+.section-title::before {
+  @apply content-[''] w-[14px] h-[2px] flex-none bg-accent;
+}
+
+.row {
+  @apply flex items-center justify-between gap-3 py-[10px] border-b border-border;
+}
+
+.row:last-child {
+  @apply border-b-0;
+}
+
+.avatar {
+  /* Warm-paper initials on ink — reads like a stamped monogram. */
+  @apply w-9 h-9 rounded-full bg-ink inline-flex items-center justify-center font-medium text-bg mr-[10px];
+  letter-spacing: 0.02em;
+}
+
+.person {
+  @apply flex items-center min-w-0;
+}
+
+.person.clickable {
+  @apply cursor-pointer rounded-lg;
+  outline-offset: 2px;
+}
+
+.person.clickable:hover .name {
+  @apply text-accent;
+}
+
+.person .name {
+  @apply font-semibold;
+  overflow-wrap: anywhere;
+}
+
+.person .email {
+  /* Long handles/emails (no spaces) must break instead of widening the row. */
+  @apply text-muted text-[12.5px];
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  @apply flex gap-2 flex-shrink-0;
+}
+
+input,
+select,
+textarea {
+  @apply w-full px-3 py-[10px] bg-panel-2 border border-border rounded-lg text-text text-[15px];
+  font-family: inherit;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* Date inputs: iOS Safari renders them with native chrome — a different height
+   and a top-/right-aligned value that breaks the form's rhythm. Strip the
+   default appearance so they share the box, height and left alignment of the
+   other text fields, and push the calendar picker to the trailing edge. */
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+  cursor: pointer;
+}
+
+textarea {
+  @apply leading-normal resize-y;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  @apply outline-none border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
+}
+
+/* Custom dropdown: drop the native arrow, add our own chevron + interactions. */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23687083' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+select:hover {
+  border-color: var(--accent);
+  background-color: #ebe5db;
+}
+
+/* Swap the chevron to the brand blue on focus. */
+select:focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232d4f7c' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
+select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* The native popup ignores most styling, but a left accent bar on the
+   highlighted option reads as intentional where browsers honour it. */
+select option:checked {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* ── Custom animated select (see components/Select.tsx) ─────────────── */
+
+.select {
+  @apply relative inline-block align-middle;
+}
+
+.select.full {
+  @apply block w-full;
+}
+
+.select-trigger {
+  @apply inline-flex items-center justify-between gap-[10px] w-auto px-3 py-[10px] bg-panel-2 border border-border rounded-lg text-text text-[15px] text-left cursor-pointer;
+  font: inherit;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.select.full .select-trigger {
+  @apply w-full;
+}
+
+.select-trigger:hover:not(:disabled) {
+  @apply border-accent bg-[#ebe5db];
+}
+
+.select-trigger:focus-visible {
+  @apply outline-none border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
+}
+
+.select-trigger.open {
+  @apply border-accent shadow-[0_0_0_3px_rgba(45,79,124,0.18)];
+}
+
+.select-trigger:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.select-value {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.select-value.placeholder {
+  @apply text-muted;
+}
+
+.select-chevron {
+  @apply flex-shrink-0 text-muted;
+}
+
+.select-trigger.open .select-chevron {
+  @apply text-accent;
+}
+
+.select-panel {
+  /* Never let the panel spill past the viewport on a narrow phone. */
+  @apply absolute z-50 left-0 w-full min-w-max max-w-[calc(100vw-24px)] max-h-[280px] overflow-y-auto m-0 p-[6px] list-none bg-panel border border-border rounded-[10px] shadow-[0_14px_36px_rgba(16,24,40,0.16)];
+  top: calc(100% + 6px);
+}
+
+.select-option {
+  @apply flex items-center justify-between gap-[10px] px-[10px] py-2 rounded-md text-sm text-text cursor-pointer select-none;
+}
+
+.select-option.active {
+  @apply bg-panel-2;
+}
+
+.select-option.selected {
+  @apply text-accent font-semibold;
+}
+
+.select-option.disabled {
+  @apply text-muted cursor-not-allowed;
+}
+
+.select-option-label {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.select-check {
+  @apply flex-shrink-0 text-accent;
+}
+
+label {
+  @apply block text-[13px] text-muted mt-3 mb-[6px];
+}
+
+button {
+  @apply border border-border bg-panel-2 text-text px-[14px] py-2 rounded-lg cursor-pointer;
+  font: inherit;
+  transition:
+    background 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+button:hover {
+  @apply bg-[#ebe5db];
+}
+
+button:active:not(:disabled) {
+  @apply scale-95;
+}
+
+button:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+button.primary {
+  @apply border-0 bg-ink text-bg w-full p-[11px] font-semibold;
+  /* Tight, crisp seat instead of a coloured glow — an inked, pressed feel. */
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.12s ease,
+    background-color 0.16s ease;
+}
+
+button.primary:hover {
+  @apply bg-[#25282f];
+}
+
+/* Social-login buttons. Outlined rather than filled so they read as secondary
+   to the inked primary action, in keeping with the warm-paper palette. */
+.oauth-btn {
+  @apply flex items-center justify-center gap-2.5 w-full p-[10px] border bg-panel text-text font-medium no-underline;
+  border-color: var(--border);
+  border-radius: 10px;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.oauth-btn:hover {
+  @apply bg-panel-2;
+  border-color: var(--ink);
+}
+
+button.danger {
+  @apply border-transparent text-danger bg-transparent;
+}
+
+button.ghost {
+  @apply bg-transparent border-transparent;
+}
+
+button.ghost:hover {
+  @apply bg-panel-2;
+}
+
+.badge {
+  @apply bg-accent text-white rounded-full text-xs tabular-nums px-2 py-px ml-[6px];
+  animation: badge-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes badge-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(45, 79, 124, 0.45);
+  }
+  50% {
+    transform: scale(1.08);
+    box-shadow: 0 0 0 5px rgba(45, 79, 124, 0);
+  }
+}
+
+.person .name {
+  transition: color 0.18s ease;
+}
+
+.navbtn:active {
+  @apply scale-[0.97];
+}
+
+/* Honour users who ask for less motion: drop the ambient layer and any
+   CSS transitions/animations. JS animations are skipped separately. */
+@media (prefers-reduced-motion: reduce) {
+  .chain-bg {
+    display: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+.error {
+  @apply text-danger text-sm mt-3;
+}
+
+/* Friends sub-tabs: a segmented control with a white pill sliding behind the
+   active item (framer-motion layoutId). ────────────────────────────────── */
+.subtabs {
+  @apply inline-flex gap-1 mb-4 p-1 border border-border rounded-[10px] bg-panel-2;
+}
+
+.subtab {
+  @apply relative inline-flex items-center gap-[6px] px-[14px] py-[6px] border-0 rounded-[7px] bg-transparent text-muted font-medium cursor-pointer;
+  font: inherit;
+  transition: color 0.12s ease;
+}
+
+.subtab:hover {
+  @apply text-text;
+}
+
+.subtab.active {
+  @apply text-accent font-semibold;
+}
+
+.subtab-pill {
+  @apply absolute inset-0 z-0 rounded-[7px] bg-panel shadow-[0_1px_3px_rgba(16,24,40,0.1)];
+}
+
+.subtab-label,
+.subtab .badge {
+  @apply relative z-[1];
+}
+
+/* Avatar cropper ───────────────────────────────────────────────────────── */
+.cropper-viewport {
+  @apply relative mt-[10px] mx-auto overflow-hidden rounded-[10px] bg-panel-2 cursor-grab touch-none select-none;
+}
+
+.cropper-viewport:active {
+  @apply cursor-grabbing;
+}
+
+/* Inscribed circle showing how the square crop reads as a round avatar; the
+   large translucent ring dims everything outside it (clipped to the square). */
+.cropper-ring {
+  @apply absolute inset-0 rounded-full pointer-events-none shadow-[0_0_0_9999px_rgba(255,255,255,0.55)];
+}
+
+/* Profile view (shown in the network-node / brand modal) ───────────────── */
+.pv-header {
+  @apply flex items-center gap-[14px];
+}
+
+.pv-name {
+  @apply font-display font-semibold text-[22px] leading-[1.15];
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+}
+
+.pv-job {
+  @apply inline-block mt-[6px] px-[10px] py-[2px] rounded-full bg-accent-soft text-accent text-[13px] font-semibold;
+}
+
+.pv-bio {
+  @apply mt-4 px-[14px] py-3 rounded-[10px] bg-panel-2 text-sm leading-normal whitespace-pre-wrap;
+}
+
+.pv-section {
+  @apply mt-[18px];
+}
+
+.pv-details {
+  @apply m-0 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-[6px] text-sm;
+}
+
+.pv-detail-row {
+  @apply contents;
+}
+
+.pv-details dt {
+  @apply text-muted;
+}
+
+.pv-details dd {
+  @apply m-0;
+}
+
+.pv-chips {
+  @apply flex flex-wrap gap-[6px];
+}
+
+.pv-chip {
+  @apply px-[10px] py-[3px] border border-border rounded-full bg-panel-2 text-[13px];
+}
+
+.pv-links {
+  @apply flex flex-col gap-2;
+}
+
+.pv-link {
+  @apply flex items-center justify-between gap-[10px] px-3 py-[9px] border border-border rounded-[10px] text-sm;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.pv-link:hover {
+  @apply bg-panel-2 border-accent;
+}
+
+.pv-link-text {
+  @apply min-w-0 flex items-baseline gap-2;
+}
+
+.pv-link-icon {
+  @apply flex-shrink-0 self-center;
+}
+
+.pv-link-platform {
+  @apply font-semibold flex-shrink-0;
+}
+
+.pv-link-detail {
+  @apply min-w-0 text-muted text-[13px] overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.pv-link-go {
+  @apply text-muted flex-shrink-0;
+}
+
+.pv-actions {
+  @apply mt-[18px];
+}
+
+/* News feed: a list of tappable article rows, styled like the profile links. */
+.news-list {
+  @apply flex flex-col gap-2 mt-3;
+}
+
+.news-item {
+  @apply flex items-start justify-between gap-3 px-3 py-[10px] border border-border rounded-[10px];
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.news-item:hover {
+  @apply bg-panel-2;
+}
+
+.news-item-main {
+  @apply min-w-0 flex flex-col gap-1;
+}
+
+.news-title {
+  @apply font-semibold text-sm leading-snug;
+}
+
+.news-title-link {
+  @apply font-semibold text-sm leading-snug text-ink no-underline;
+}
+
+.news-title-link:hover {
+  @apply underline;
+}
+
+.news-actions {
+  @apply flex flex-col items-end gap-1 flex-shrink-0;
+}
+
+.news-act {
+  @apply text-[12px] px-2 py-1 rounded-md border border-border bg-panel text-ink cursor-pointer whitespace-nowrap;
+}
+
+.news-act:hover {
+  @apply border-accent;
+}
+
+.news-act--muted {
+  @apply text-muted bg-transparent;
+}
+
+.news-saved {
+  @apply text-[12px] text-ok font-semibold whitespace-nowrap px-2 py-1;
+}
+
+.news-reasons {
+  @apply flex flex-wrap gap-1;
+}
+
+.news-reason {
+  @apply text-[11px] px-[7px] py-px rounded-full bg-accent-soft text-accent whitespace-nowrap;
+}
+
+/* Transient error toasts (fire-and-forget mutation failures). */
+.toast-host {
+  @apply fixed left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-2;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 76px);
+  pointer-events: none;
+}
+
+.toast-item {
+  @apply px-4 py-2 rounded-[10px] bg-danger text-white text-sm shadow-[0_8px_24px_rgba(16,24,40,0.18)] max-w-[90vw];
+}
+
+/* Network Deck: graph on top, a horizontal strip of friend cards below. */
+.deck {
+  @apply flex-1 min-h-0 flex flex-col;
+}
+
+.deck-graph {
+  @apply flex-1 min-h-0 flex flex-col;
+}
+
+.deck-strip {
+  @apply flex gap-2 overflow-x-auto px-4 py-3 border-t border-border;
+  scroll-snap-type: x mandatory;
+}
+
+.node-card {
+  @apply flex-shrink-0 w-[208px] p-3 rounded-card border border-border bg-panel;
+  scroll-snap-align: center;
+  transition: border-color 0.12s ease;
+}
+
+.node-card-main {
+  @apply cursor-pointer rounded-[8px] outline-none;
+}
+
+.node-card-main:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.node-card--active {
+  @apply border-accent;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.node-card-beacon {
+  @apply flex items-center gap-1.5 mt-2 text-[12px];
+  color: #b45309;
+}
+
+/* Bridge mode: a floating bar over the graph while you pick two friends to
+   introduce. */
+.bridge-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 30px -14px rgba(0, 0, 0, 0.4);
+  z-index: 5;
+}
+
+/* Beacon: your active signal row + a softly pulsing dot. */
+.beacon-mine {
+  @apply flex items-center gap-2 px-3 py-[10px] rounded-[10px] border border-accent bg-accent-soft text-sm;
+}
+
+.beacon-dot {
+  @apply inline-block w-2 h-2 rounded-full flex-shrink-0;
+  background: var(--accent);
+  animation: beacon-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes beacon-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--accent);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beacon-dot {
+    animation: none;
+  }
+}
+
+/* Beacon "light it" UI: tap a short preset to light a beacon, rather than
+   filling in a post box. Your live beacon shows as a softly glowing light card
+   with a 72h remaining ring. */
+.beacon-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.beacon-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.beacon-preset:hover {
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -6px var(--accent);
+}
+
+.beacon-custom-toggle {
+  width: auto;
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  text-decoration: underline;
+}
+
+.beacon-custom-toggle:hover {
+  background: none;
+  color: var(--accent);
+}
+
+.beacon-light {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: radial-gradient(
+    130% 150% at 0% 50%,
+    var(--accent-soft),
+    var(--panel)
+  );
+  box-shadow:
+    0 0 0 1px var(--accent-soft),
+    0 10px 26px -16px var(--accent);
+  font-size: 14px;
+}
+
+.beacon-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.beacon-ring-label {
+  position: absolute;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Connection Card rows (inbox / sent) — a stack of openable cards. Unread cards
+   sit lifted off the stack; any card rises a touch on hover/focus and opens to a
+   larger detail view. */
+.card-open {
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  border-radius: 16px;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.card-open:hover,
+.card-open:focus-visible {
+  transform: translateY(-2px);
+}
+
+.card-open:focus-visible {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card-open--unread {
+  transform: translateY(-3px);
+}
+
+.card-open--unread .cardp {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 14px 32px -16px rgba(0, 0, 0, 0.32);
+}
+
+/* ---------------------------------------------------------------------------
+   CardPreview: a Connection Card rendered as a finished "card work". Structure
+   is fixed; each theme just supplies a palette via --cp-* custom properties, so
+   the same markup renders in the composer, inbox, sent list and history.
+   --------------------------------------------------------------------------- */
+.cardp {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-bg);
+  color: var(--cp-fg);
+  overflow: hidden;
+  font-size: 14px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 10px 28px -16px rgba(0, 0, 0, 0.28);
+}
+
+/* Section order (templates rearrange via these). */
+.cardp-band {
+  order: 1;
+}
+.cardp-people {
+  order: 2;
+}
+.cardp-title {
+  order: 3;
+}
+.cardp-subtitle {
+  order: 4;
+}
+.cardp-body {
+  order: 5;
+}
+
+.cardp-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, var(--cp-accent-soft), transparent 80%);
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cardp-kind {
+  font-weight: 650;
+  font-size: 13px;
+}
+
+.cardp-brand {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--cp-muted);
+  opacity: 0.8;
+}
+
+.cardp-people {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px 0;
+  font-size: 12px;
+  color: var(--cp-muted);
+}
+
+.cardp-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 44%;
+}
+
+.cardp-arrow {
+  color: var(--cp-accent);
+  flex-shrink: 0;
+}
+
+.cardp-title {
+  padding: 8px 14px 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.cardp-title--ghost {
+  font-weight: 500;
+  color: var(--cp-muted);
+  opacity: 0.5;
+}
+
+.cardp-subtitle {
+  padding: 2px 14px 0;
+  font-size: 13px;
+  color: var(--cp-muted);
+}
+
+.cardp-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 14px;
+}
+
+.cardp-message {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.cardp-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cardp-tag {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--cp-accent-soft);
+  color: var(--cp-accent-ink);
+  border: 1px solid var(--cp-border);
+}
+
+/* The article block reads as a pulled quote — a card built around a link feels
+   like sharing a passage, not pasting a URL. */
+.cardp-article {
+  margin: 0;
+  font-size: 13px;
+  font-style: italic;
+  padding: 8px 10px 8px 12px;
+  border-radius: 10px;
+  background: var(--cp-bg2);
+  border: 1px solid var(--cp-border);
+  border-left: 3px solid var(--cp-accent);
+  word-break: break-word;
+}
+
+.cardp-article-mark {
+  color: var(--cp-accent);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.cardp-next {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--cp-accent-ink);
+}
+
+.cardp-ghost {
+  opacity: 0.45;
+  font-style: italic;
+}
+
+/* Themes -------------------------------------------------------------------- */
+.cardp--paper {
+  --cp-bg: #fbf7ef;
+  --cp-bg2: #f3ece0;
+  --cp-fg: #2a2520;
+  --cp-muted: #8a8275;
+  --cp-border: #e6ddcc;
+  --cp-accent: #c2783c;
+  --cp-accent-soft: #f6e7d6;
+  --cp-accent-ink: #a85f28;
+}
+.cardp--midnight {
+  --cp-bg: #0f1830;
+  --cp-bg2: #16223f;
+  --cp-fg: #e8eefc;
+  --cp-muted: #92a0c0;
+  --cp-border: #26344f;
+  --cp-accent: #5aa0ff;
+  --cp-accent-soft: #1a2742;
+  --cp-accent-ink: #9cc2ff;
+}
+.cardp--sunset {
+  --cp-bg: #fff3ea;
+  --cp-bg2: #ffe6d6;
+  --cp-fg: #3b2620;
+  --cp-muted: #9c7768;
+  --cp-border: #f6d3bd;
+  --cp-accent: #e8643c;
+  --cp-accent-soft: #ffe0d0;
+  --cp-accent-ink: #cf4f2c;
+}
+.cardp--mint {
+  --cp-bg: #f0faf5;
+  --cp-bg2: #dff3e8;
+  --cp-fg: #1f3a2e;
+  --cp-muted: #6f9384;
+  --cp-border: #cbe8d8;
+  --cp-accent: #1f9d6b;
+  --cp-accent-soft: #d7f0e3;
+  --cp-accent-ink: #147a52;
+}
+.cardp--blossom {
+  --cp-bg: #fdf2f6;
+  --cp-bg2: #fbe3ec;
+  --cp-fg: #3d2230;
+  --cp-muted: #a3768a;
+  --cp-border: #f3d2de;
+  --cp-accent: #d94f86;
+  --cp-accent-soft: #fbdce8;
+  --cp-accent-ink: #bd3a6e;
+}
+.cardp--slate {
+  --cp-bg: #f4f6f9;
+  --cp-bg2: #e7ecf2;
+  --cp-fg: #23303d;
+  --cp-muted: #71808f;
+  --cp-border: #d6dee7;
+  --cp-accent: #3b76c4;
+  --cp-accent-soft: #dde8f5;
+  --cp-accent-ink: #2f63a8;
+}
+
+/* Composer layout controls: toggle which blocks show and reorder them. */
+.card-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card-block-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card-block-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.card-block-move {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.card-block-move button {
+  padding: 2px 9px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* A row of selectable theme swatches in the composer. */
+.cardp-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cardp-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--cp-border);
+  background: linear-gradient(135deg, var(--cp-bg) 45%, var(--cp-accent) 45%);
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.1s ease;
+}
+
+.cardp-swatch:hover {
+  transform: translateY(-1px);
+}
+
+.cardp-swatch--active {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+
+.cardp-swatch:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+
+/* Selectable blocks in the studio canvas — hover hints, selection outlines. */
+.cardp-selectable {
+  cursor: pointer;
+  border-radius: 8px;
+  outline: 1px dashed transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.12s ease;
+}
+.cardp-selectable:hover {
+  outline-color: var(--cp-accent);
+}
+.cardp-sel {
+  outline: 2px solid var(--cp-accent);
+  outline-offset: 2px;
+}
+
+/* Template: postcard — a big headline with the two people at the foot. */
+.cardp--tpl-postcard .cardp-band {
+  background: none;
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.cardp--tpl-postcard .cardp-title {
+  font-size: 24px;
+  line-height: 1.15;
+  padding-top: 4px;
+}
+.cardp--tpl-postcard .cardp-people {
+  order: 6;
+  border-top: 1px solid var(--cp-border);
+  margin-top: 6px;
+  padding: 10px 14px;
+}
+
+/* Template: clipping — a torn-paper news cutting; the quote is the hero. */
+.cardp--tpl-clipping {
+  border-top: 2px dashed var(--cp-accent);
+}
+.cardp--tpl-clipping .cardp-band {
+  background: none;
+  border-bottom: 1px dashed var(--cp-border);
+}
+.cardp--tpl-clipping .cardp-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 19px;
+}
+.cardp--tpl-clipping .cardp-article {
+  font-size: 15px;
+  background: none;
+  border: 0;
+  border-left: 3px solid var(--cp-accent);
+  border-radius: 0;
+}
+
+/* Template: passport — an introduction pass: two people large and centred. */
+.cardp--tpl-passport .cardp-people {
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 14px 4px;
+}
+.cardp--tpl-passport .cardp-person {
+  flex-direction: column;
+  text-align: center;
+  gap: 6px;
+  max-width: 40%;
+}
+.cardp--tpl-passport .cardp-title {
+  text-align: center;
+}
+.cardp--tpl-passport .cardp-arrow {
+  font-size: 20px;
+}
+
+/* ── Card Studio: a full-screen, canvas-centric card editor ───────────────── */
+.studio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  background: rgba(20, 16, 10, 0.5);
+  backdrop-filter: blur(2px);
+}
+
+.studio {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+}
+
+@media (min-width: 768px) {
+  .studio-overlay {
+    padding: 24px;
+  }
+  .studio {
+    max-width: 1100px;
+    max-height: 90vh;
+    margin: auto;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.5);
+  }
+}
+
+.studio-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.studio-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+@media (min-width: 920px) {
+  .studio-body {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr) 340px;
+    overflow: hidden;
+  }
+}
+
+.studio-pane {
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+@media (min-width: 920px) {
+  .studio-pane {
+    overflow-y: auto;
+  }
+  .studio-left {
+    border-right: 1px solid var(--border);
+  }
+  .studio-right {
+    border-left: 1px solid var(--border);
+  }
+}
+
+.studio-canvas {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 20px 16px;
+  background: var(--panel-2);
+}
+
+@media (min-width: 920px) {
+  .studio-canvas {
+    align-items: center;
+    overflow-y: auto;
+  }
+}
+
+.studio-canvas-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.studio-label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.studio-pane > .studio-label:first-child {
+  margin-top: 0;
+}
+
+.studio-templates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+@media (min-width: 920px) {
+  .studio-templates {
+    grid-template-columns: 1fr;
+  }
+}
+
+.studio-tpl {
+  display: block;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+.studio-tpl--active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.studio-tpl-thumb {
+  display: block;
+  height: 88px;
+  overflow: hidden;
+  border-radius: 8px;
+  pointer-events: none;
+}
+.studio-tpl-thumb .cardp {
+  transform: scale(0.55);
+  transform-origin: top left;
+  width: 182%;
+  box-shadow: none;
+}
+.studio-tpl-name {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.studio-sent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 16px;
+  text-align: center;
+}
+.studio-sent-card {
+  max-width: 420px;
+  margin: 12px auto 0;
+}
+
+.card-block-grip {
+  cursor: grab;
+  color: var(--muted);
+  font-size: 14px;
+}
+.card-block-row--drag {
+  cursor: grab;
+}
+
+.card-new {
+  @apply text-[10px] font-semibold uppercase tracking-wide px-[6px] py-px rounded-full bg-accent text-white;
+}
+
+/* Weekly digest: three at-a-glance stats. */
+.digest-grid {
+  @apply grid grid-cols-3 gap-2 mt-2;
+}
+
+.digest-stat {
+  @apply flex flex-col items-center justify-center gap-0.5 text-center px-2 py-3 rounded-[10px] border border-border bg-panel-2;
+}
+
+.digest-stat--btn {
+  @apply cursor-pointer;
+  transition: border-color 0.12s ease;
+}
+
+.digest-stat--btn:hover {
+  @apply border-accent;
+}
+
+.digest-num {
+  @apply font-display font-semibold text-2xl text-ink leading-none;
+}
+
+/* Subtle "report" link in the profile modal. */
+.report-link {
+  @apply text-[13px] text-muted bg-transparent border-0 p-0 cursor-pointer underline;
+}
+
+.report-link:hover {
+  @apply text-danger;
+}
+
+/* Standalone public profile page (/u/[username]). */
+.public-profile {
+  @apply max-w-[560px] mx-auto px-4 py-8 flex flex-col items-stretch gap-4;
+}
+
+.public-profile-cta {
+  @apply self-center text-accent font-medium no-underline;
+}
+
+/* Profile completeness meter. */
+.completeness-bar {
+  @apply mt-3 h-2 rounded-full bg-panel-2 overflow-hidden;
+}
+
+.completeness-bar > span {
+  @apply block h-full bg-accent rounded-full;
+  transition: width 0.4s ease;
+}
+
+.completeness-list {
+  @apply mt-3 mb-0 pl-0 list-none flex flex-col gap-1.5;
+}
+
+.completeness-list > li {
+  @apply text-sm text-muted flex items-start gap-2;
+}
+
+.completeness-list > li::before {
+  content: "→";
+  @apply text-accent flex-shrink-0;
+}
+
+.news-summary {
+  @apply text-muted text-[13px] leading-snug overflow-hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.news-meta {
+  @apply flex items-center flex-wrap gap-x-2 gap-y-1 text-[12px] text-muted;
+}
+
+.news-source {
+  @apply font-semibold;
+}
+
+.news-lang {
+  @apply px-[6px] py-px border border-border rounded-full;
+}
+
+.news-when {
+  @apply ml-auto;
+}
+
+.news-go {
+  @apply text-muted flex-shrink-0;
+}
+
+/* Pending-request arrow: a dashed shaft whose ants march toward the head,
+   continuously, to signal an in-flight friend request. Disabled for
+   reduced-motion via the global rule above. */
+.req-arrow {
+  @apply flex-shrink-0 overflow-visible;
+}
+
+.req-arrow--in {
+  @apply text-accent;
+}
+
+.req-arrow--out {
+  @apply text-muted;
+}
+
+.req-arrow-shaft {
+  animation: march-ants 0.7s linear infinite;
+}
+
+@keyframes march-ants {
+  to {
+    /* Shift by one dash+gap (6 + 5) so the pattern loops seamlessly. */
+    stroke-dashoffset: -11;
+  }
+}
+
+.muted {
+  @apply text-muted;
+}
+
+.empty {
+  @apply text-muted text-sm py-3;
+}
+
+.center-narrow {
+  @apply max-w-[380px] my-16 mx-auto;
+}
+
+/* ── Editorial auth (login / register) ──────────────────────────────── */
+
+/* Shared page-top bar: icon (links home) left, language switcher right. */
+.brandbar {
+  /* Ease the bar in (and reserve its height) so it doesn't snap into place. */
+  @apply flex items-center justify-between gap-3 w-full max-w-[1040px] mx-auto px-5 py-4;
+  animation: fade-in-down 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.brandbar-mark {
+  @apply inline-flex leading-none rounded-lg;
+}
+
+.brandbar-mark img {
+  @apply block h-[34px] w-auto;
+}
+
+.auth-page {
+  @apply max-w-[400px] mx-auto;
+  padding: clamp(40px, 8vh, 88px) 24px 64px;
+}
+
+.auth-hero {
+  /* Quiet baseline rule under the wordmark — a hairline detail, not a banner. */
+  @apply pb-4 border-b border-border mb-7;
+}
+
+/* Restrained serif wordmark: characterful Fraunces at a confident — not
+   oversized — size. The serif itself carries the personality, so no drama is
+   needed. */
+.auth-wordmark {
+  @apply m-0 font-display font-semibold text-[2.25rem] leading-none text-ink;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.auth-mark {
+  @apply text-accent;
+  margin-right: 0.18em;
+  font-size: 0.8em;
+}
+
+/* Wordmark logo image (replaces the ⛓ chains text on the auth screens). */
+.auth-logo {
+  @apply block w-auto;
+  height: clamp(52px, 11vw, 72px);
+}
+
+/* A small, factual descriptor — what the product literally is, set in mono so
+   it reads as a quiet caption rather than marketing copy. */
+.auth-eyebrow {
+  @apply mt-2 text-xs text-muted;
+  letter-spacing: 0.02em;
+}
+
+/* Lift the form off the hero (mobile, stacked layout). */
+.auth-card {
+  @apply mt-8 w-full;
+}
+
+/* Language switcher row under the form (mobile: centered). */
+.auth-foot {
+  @apply flex justify-center mt-4;
+}
+
+/* Desktop: split the auth screen into two columns — brand on the left, form on
+   the right — vertically centred. The form keeps its own max width via the
+   column. Mobile keeps the single stacked column above. */
+@media (min-width: 860px) {
+  /* The brand/lang bar floats at the top so the auth content can centre against
+     the full screen height rather than being pushed down by it. */
+  .brandbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+  }
+
+  /* Wide, bilaterally symmetric split: the brand centred in the left half, the
+     form centred in the right half. The page fills the viewport and centres the
+     whole two-column block vertically. */
+  .auth-page {
+    min-height: 100dvh;
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    align-content: center;
+    gap: clamp(48px, 8vw, 120px);
+    padding: 48px;
+  }
+
+  .auth-hero {
+    /* Drop the mobile divider; centre the brand block in the left half. */
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .auth-logo {
+    height: clamp(96px, 9vw, 148px);
+  }
+
+  /* Unify the login & register cards to one size. The shorter login form is
+     centred inside it, so the height difference becomes balanced top/bottom
+     padding rather than a wasted gap. Tune --auth-card-min to the register
+     form's natural height. */
+  .auth-card {
+    margin-top: 0;
+    justify-self: center;
+    width: 100%;
+    max-width: 400px;
+    /* Unify login & register to the (taller) register form's natural height so
+       both cards are the same size. Re-measure if the forms change. */
+    min-height: var(--auth-card-min, 740px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Centre the (shorter) login content with auto margins, so its leftover space
+     becomes balanced top/bottom margin rather than a gap. Register fills the
+     height, so these margins collapse to ~0. */
+  .auth-card > :first-child {
+    margin-top: auto;
+  }
+
+  .auth-card > :last-child {
+    margin-bottom: auto;
+  }
+}
+
+.modal-overlay {
+  @apply fixed inset-0 flex items-center justify-center p-4 z-50 bg-[rgba(16,24,40,0.45)] backdrop-blur-[3px];
+  animation: overlay-in 0.18s ease both;
+}
+
+.modal-card {
+  @apply relative w-full max-w-[420px] p-5 rounded-card border border-border bg-panel shadow-[0_18px_50px_rgba(16,24,40,0.22)];
+  animation: modal-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.modal-close {
+  @apply absolute top-[10px] right-[10px] border-0 bg-transparent text-muted text-xl leading-none px-2 py-1;
+}
+
+/* ── Mobile: hide sidebar, show top bar + bottom tab bar ───────────── */
+@media (max-width: 768px) {
+  /* Keep a tall modal usable on small screens without becoming a sheet:
+     centred, but able to scroll inside if its content exceeds the viewport. */
+  .modal-card {
+    max-height: 88dvh;
+    overflow-y: auto;
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .topbar {
+    display: flex;
+    /* App-like: keep the brand/actions bar pinned while content scrolls, and
+       clear any top safe-area (notch in landscape / black-translucent mode). */
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    padding-top: calc(14px + env(safe-area-inset-top));
+  }
+
+  .content {
+    padding: 16px 14px calc(var(--bottombar-h) + 24px + env(safe-area-inset-bottom));
+  }
+
+  .content--full {
+    padding: 0 0 calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+  }
+
+  .bottombar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: var(--bottombar-h);
+    /* Keep the bar clear of the iOS home indicator / gesture area. */
+    height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
+    border-top: 1px solid var(--border);
+    background: var(--panel);
+    z-index: 40;
+  }
+
+  .bottombar .navbtn {
+    position: relative;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 2px;
+    border-radius: 0;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* Clear active state: indigo icon + bold label + a sliding accent bar. The bar
+     is the framer-motion .nav-pill (shared layoutId), so it glides smoothly from
+     the old tab to the new one on every switch. */
+  .bottombar .navbtn.active {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  /* Centre with auto margins (left:0/right:0 + width), not a transform:
+     framer-motion's layout animation owns `transform`, so a translateX here
+     would be overridden and leave the bar off-centre after it slides. */
+  .bottombar .nav-pill {
+    inset: 0 0 auto 0;
+    width: 32px;
+    height: 3px;
+    margin: 0 auto;
+    border-radius: 0 0 3px 3px;
+    background: var(--accent);
+    box-shadow: none;
+  }
+
+  /* Mobile drops the big page headings — the active footer tab tells you where
+     you are instead. */
+  .area-title {
+    display: none;
+  }
+
+  .bottombar .navbtn .badge {
+    position: absolute;
+    top: 4px;
+    margin-left: 18px;
+  }
+
+  /* iOS Safari auto-zooms when a focused field's font is < 16px; the page is
+     then left zoomed and horizontally scrollable (reads as "broken layout").
+     Keeping form fields at 16px prevents that zoom entirely. */
+  input,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Roomier tap targets on touch. */
+  button {
+    padding: 10px 14px;
+  }
+  button.primary {
+    padding: 13px;
+  }
+
+  /* One clean row: the wordmark holds the left, the action cluster the right.
+     The brand never shrinks; the actions group absorbs the slack and the name
+     truncates so nothing wraps to a second line. */
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 10px;
+    align-items: center;
+    /* Symmetric vertical padding so the row (name, language, sign-out) sits
+       optically centred in the bar. The notch is handled by the OS reserving
+       the status bar (apple status-bar-style "default") plus the safe-area
+       spacer below — adding the inset HERE skewed the content downward and made
+       it read as off-centre in device emulators. */
+    padding-top: 12px;
+    padding-bottom: 12px;
+    /* Still clear the notch when the status bar overlays the webview, without
+       unbalancing the row: a margin pushes the whole bar down, padding stays
+       symmetric so the content remains centred within the bar itself. */
+    margin-top: env(safe-area-inset-top);
+  }
+  .topbar .brand {
+    flex: none;
+  }
+  .topbar .actions {
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+  }
+  /* Signed-in name: a quiet caption that yields space before anything else. */
+  .topbar-name {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 34vw;
+    color: var(--muted);
+    font-size: 12.5px;
+    letter-spacing: -0.01em;
+  }
+  /* Compact square icon button (sign out) — no grey fill, tap-sized. */
+  .topbar .icon-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    color: var(--muted);
+  }
+  .topbar .icon-btn:hover {
+    color: var(--text);
+  }
+}
+
+/* Bridge celebration — a calm, editorial toast pinned bottom-centre when an
+   accepted request joins two separate clusters of the network. Flat paper panel
+   with the indigo spark in the link mark, matching the card language. */
+.bridge-toast {
+  /* One soft, low shadow so it lifts off the page — the only floated surface in
+     the app, justified because it overlays content. */
+  @apply fixed left-1/2 bottom-10 -translate-x-1/2 z-[60] flex flex-col items-center text-center gap-3 w-[min(420px,calc(100vw-32px))] px-8 py-[30px] rounded-card border border-border bg-panel cursor-pointer shadow-[0_18px_48px_-16px_rgba(22,24,29,0.32)];
+}
+
+.bridge-toast__mark {
+  @apply flex-none;
+}
+
+.bridge-toast__title {
+  @apply m-0 font-display text-[22px] font-semibold leading-[1.15] text-ink;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.bridge-toast__body {
+  @apply m-0 max-w-[30ch] text-sm leading-normal text-muted;
+  text-wrap: balance;
+}
+
+/* Sit above the mobile bottom nav rather than under it. */
+@media (max-width: 768px) {
+  .bridge-toast {
+    bottom: calc(var(--bottombar-h) + 16px);
+  }
+}
+
+} /* end @layer components */
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Landing page (/) — scoped to `.lp`. 暗い・手書き書体のマーケLP。アプリの
+   light/mono UI とは別系統で、.lp の外には漏らさない。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* LP 内の要素リセット（base レイヤ＝ユーティリティが勝つ）。本体は preflight 無しのため
+   既定マージン/箇条書きが残るので LP だけ消す。a/button は base に移したので
+   text-* / bg-* 等のユーティリティが当たる。 */
+@layer base {
+  .lp :where(h1, h2, h3, h4, h5, h6, p, figure, blockquote, dl, dd) {
+    margin: 0;
+  }
+  .lp :where(ul, ol) {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+}
+/* LP のボタンはユーティリティで装う。アプリ本体の `button`（components 層）を
+   .lp 内では素に戻す（同層・高詳細度で勝つ）。LP のユーティリティ(utilities 層)が更に勝つ。 */
+@layer components {
+  .lp button {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+  }
+  .lp button:hover {
+    background: transparent;
+  }
+}
+
+/* LP のスコープ: 暗い地・手書き Klee・全幅 showcase の横はみ出し抑制。font 変数を
+   上書きすると配下の font-display/font-body だけ Klee になる（本体書体は無傷）。
+   mono は html の --font-mono(JetBrains)のまま。 */
+.lp {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  background: var(--color-night);
+  color: var(--color-ink);
+  --font-body: var(--font-klee), var(--font-jp), ui-sans-serif, system-ui,
+    sans-serif;
+  --font-display: var(--font-klee), var(--font-jp), ui-sans-serif, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* 入場リビールの初期非表示（LP 内のみ）。 */
+@media (prefers-reduced-motion: no-preference) {
+  .js .lp [data-reveal],
+  .js .lp .reveal {
+    opacity: 0;
+  }
+}
+
+/* 上端ハイライト（装飾）。 */
+.lit-top {
+  position: relative;
+}
+.lit-top::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 42%;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0)
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* 流れる点線（マーチングドット）。 */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.flow-dash {
+  animation: dash-flow 1.6s linear infinite;
+}
+
+/* スライドショーの進行バー。 */
+@keyframes slideshow-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* アンビエント漂い（AmbientField）。 */
+@keyframes ambient-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+    opacity: var(--ambient-o0, 0.1);
+  }
+  to {
+    transform: translate3d(var(--ambient-dx, 0), var(--ambient-dy, 0), 0);
+    opacity: var(--ambient-o1, 0.2);
+  }
+}
+
+/* reduced-motion 安全網（LP）。 */
+@media (prefers-reduced-motion: reduce) {
+  #network svg path {
+    stroke-dashoffset: 0 !important;
+  }
+  #network svg g {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  [data-ambient] {
+    animation: none !important;
+  }
+  .flow-dash {
+    animation: none !important;
+  }
+}

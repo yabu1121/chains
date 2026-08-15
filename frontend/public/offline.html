@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>オフライン — Chains</title>
+    <style>
+      :root {
+        --bg: #faf8f4;
+        --ink: #16181d;
+        --muted: #5b616f;
+        --border: #e6e1d8;
+        --accent: #2d4f7c;
+      }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--ink);
+        font-family: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+        display: grid;
+        place-items: center;
+        padding: max(24px, env(safe-area-inset-top)) 24px;
+        text-align: center;
+      }
+      .wrap { max-width: 28rem; }
+      .badge {
+        display: inline-block;
+        font-size: 11px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px 12px;
+        margin-bottom: 20px;
+      }
+      h1 { font-size: 1.75rem; line-height: 1.2; margin: 0 0 12px; }
+      p { color: var(--muted); line-height: 1.7; margin: 0 0 24px; }
+      button {
+        font: inherit;
+        color: #fff;
+        background: var(--accent);
+        border: none;
+        border-radius: 10px;
+        padding: 12px 22px;
+        cursor: pointer;
+      }
+      button:active { transform: translateY(1px); }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <span class="badge">Offline</span>
+      <h1>接続がありません</h1>
+      <p>ネットワークに繋がっていないようです。オンラインに戻ったら、もう一度お試しください。</p>
+      <button onclick="location.reload()">再読み込み</button>
+    </div>
+  </body>
+</html>

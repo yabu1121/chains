@@ -1,0 +1,80 @@
+name: Deploy
+
+# Continuous delivery: on every push to main, build both images, run DB
+# migrations, then deploy backend (chains) and frontend (chains-front) to
+# Cloud Run. Authenticates to GCP with keyless Workload Identity Federation.
+#
+# Repo config (already set):
+#   secrets.GCP_WIF_PROVIDER  – Workload Identity provider resource name
+#   secrets.GCP_DEPLOY_SA     – chains-deployer@<project>.iam.gserviceaccount.com
+# Non-secret config is inlined in env below.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Never run two deploys against main at once; let an in-flight one finish.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # required for Workload Identity Federation
+
+env:
+  PROJECT_ID: theta-petal-498113-n5
+  REGION: asia-northeast1
+  AR: asia-northeast1-docker.pkg.dev/theta-petal-498113-n5/cloud-run-source-deploy
+  API_ORIGIN: https://chains-180234550522.asia-northeast1.run.app
+  BACKEND_SERVICE: chains
+  FRONTEND_SERVICE: chains-front
+  MIGRATE_JOB: chains
+
+jobs:
+  deploy:
+    name: build + migrate + deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build images
+        run: |
+          set -euo pipefail
+          # Backend: build via config (CLOUD_LOGGING_ONLY, so the non-Viewer
+          # deploy SA doesn't fail trying to stream the default logs bucket).
+          gcloud builds submit backend --config backend/cloudbuild.yaml \
+            --substitutions "_IMG=$AR/chains-backend:$GITHUB_SHA" --project "$PROJECT_ID"
+          # Frontend: API_ORIGIN must be a build arg (rewrites bake at build time).
+          gcloud builds submit frontend --config frontend/cloudbuild.yaml \
+            --substitutions "_API_ORIGIN=$API_ORIGIN,_IMG=$AR/chains-front:$GITHUB_SHA" \
+            --project "$PROJECT_ID"
+
+      - name: Run DB migrations
+        run: |
+          set -euo pipefail
+          gcloud run jobs update "$MIGRATE_JOB" \
+            --image "$AR/chains-backend:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID"
+          gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --project "$PROJECT_ID" --wait
+
+      - name: Deploy backend
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$BACKEND_SERVICE" \
+            --image "$AR/chains-backend:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID"
+
+      - name: Deploy frontend
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$FRONTEND_SERVICE" \
+            --image "$AR/chains-front:$GITHUB_SHA" --region "$REGION" --project "$PROJECT_ID" \
+            --update-env-vars "API_ORIGIN=$API_ORIGIN"
